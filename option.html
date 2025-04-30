@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no" />
+    <title>系统设置</title>
+    <link rel="stylesheet" href="css/w3.css">
+    <link rel="stylesheet" href="css/main.css">
+    <style>
+        .option-container {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            max-width: 500px;
+            max-height: 80vh; /* 最大高度为视口高度的80% */
+            background-color: rgba(255, 255, 255, 0.9);
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            z-index: 2000; /* 确保设置弹出框在标题文字之上，比logo的z-index更高 */
+            overflow-y: auto; /* 添加垂直滚动条 */
+            overflow-x: hidden; /* 隐藏水平滚动条 */
+            overscroll-behavior: contain; /* 防止滚动传播到底层 */
+            -webkit-overflow-scrolling: touch; /* 在iOS上启用惯性滚动 */
+        }
+
+        .option-title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .option-item {
+            margin-bottom: 20px;
+        }
+
+        .option-label {
+            display: block;
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #444;
+        }
+
+        .option-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        .option-button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 10px 5px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        .option-button:hover {
+            background-color: #45a049;
+        }
+
+        .button-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+        }
+    </style>
+    <script type="text/javascript" src="js/page-manager.js"></script>
+    <script type="text/javascript" src="js/option.js"></script>
+</head>
+<body oncontextmenu="return false">
+    <div class="logo">
+        <img src="img/huiyi-logo.png" alt="会议系统Logo">
+        <span class="logo-text" id="header-title"></span>
+    </div>
+
+    <script>
+        // 在页面加载时从配置中读取标题文字
+        document.addEventListener('plusready', function() {
+            try {
+                // 等待OptionService初始化完成
+                setTimeout(function() {
+                    if (window.OptionService && typeof window.OptionService.getTitleText === 'function') {
+                        var titleText = window.OptionService.getTitleText();
+                        var headerTitle = document.getElementById('header-title');
+                        if (headerTitle && titleText) {
+                            headerTitle.innerText = titleText;
+                            console.log('标题文字已更新为:', titleText);
+                        }
+                    }
+                }, 500); // 等待500毫秒确保OptionService已初始化
+            } catch (error) {
+                console.error('更新标题文字失败:', error);
+            }
+        });
+    </script>
+
+    <div class="option-container">
+        <div class="option-title">系统设置</div>
+
+        <div class="option-item">
+            <label class="option-label" for="server-url">服务器地址</label>
+            <input type="text" id="server-url" class="option-input" placeholder="请输入服务器地址">
+        </div>
+
+        <div class="option-item">
+            <label class="option-label" for="server-port">服务器端口</label>
+            <input type="number" id="server-port" class="option-input" min="1" max="65535" placeholder="请输入服务器端口">
+        </div>
+
+
+
+        <div class="option-item">
+            <label class="option-label" for="update-interval">自动更新间隔（秒）</label>
+            <input type="number" id="update-interval" class="option-input" min="5" placeholder="请输入更新间隔时间">
+        </div>
+
+        <div class="option-item">
+            <label class="option-label" for="title-text">标题文字</label>
+            <input type="text" id="title-text" class="option-input" placeholder="请输入标题文字">
+        </div>
+
+        <div class="option-item">
+            <label class="option-label" for="show-click-hint">显示点击提示</label>
+            <select id="show-click-hint" class="option-input">
+                <option value="true">显示"（点击打开）"提示</option>
+                <option value="false">不显示提示</option>
+            </select>
+        </div>
+
+        <div class="button-container">
+            <button class="option-button" id="save-button">保存设置</button>
+            <button class="option-button" id="cancel-button" style="background-color: #f44336;">返回</button>
+        </div>
+    </div>
+</body>
+</html>

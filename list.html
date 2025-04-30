@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+	<head>
+	    <meta charset="utf-8">
+	    <meta name="viewport" content="initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+	    <title>产品开发讨论会</title>
+	    <link rel="stylesheet" href="css/w3.css">
+	    <style>
+	        body {
+	            margin: 0;
+	            padding: 0;
+	            background-color: #d32f2fe5;
+	            font-family: "Segoe UI", Arial, sans-serif;
+	            color: #333;
+	            user-select: none;          /* 标准语法 */
+	            -webkit-user-select: none;  /* Safari/Chrome 等 WebKit 内核浏览器 */
+	            -moz-user-select: none;     /* Firefox */
+	            -ms-user-select: none;      /* Internet Explorer/Edge */
+	        }
+
+	        .header {
+	            display: flex;
+	            align-items: center;
+	            justify-content: center;
+	            background-color: #9c2424;
+	            height: 50px;
+	            position: fixed;
+	            top: 0;
+	            left: 0;
+	            right: 0;
+	            width: 100%;
+	            z-index: 1000;
+	            color: white;
+	        }
+
+	        .back-button {
+	            position: absolute;
+	            left: 20px;
+	            background-color: #ff8800e8;
+	            border: none;
+	            border-radius: 5px;
+	            color: white;
+	            font-size: 20px;
+	            cursor: pointer;
+	            padding: 0px 10px;
+	            box-shadow: 0 3px 5px rgba(0, 0, 0, 0.3),
+	                       0 3px 5px rgba(0, 0, 0, 0.2);
+	        }
+
+	        .back-button:hover {
+	            transform: translateY(-2px);
+	            box-shadow: 0 3px 5px rgba(0, 0, 0, 0.3),
+	                       0 3px 5px rgba(0, 0, 0, 0.2);
+	        }
+	        .header-title {
+	            font-size: 28px;
+	            font-weight: normal;
+	            margin: 0;
+	        }
+
+	        .current-time {
+	            position: absolute;
+	            right: 10px;
+	            font-size: 24px;
+	            color: white;
+	        }
+
+	        .content-container {
+	            border-radius: 10px 10px 0 0;
+	            margin-top: 60px;
+	            padding: 15px;
+	        }
+
+	        .section {
+	            background-color: rgba(255, 242, 242, 0.945);
+	            border-radius: 8px;
+	            padding: 15px;
+	            margin-bottom: 15px;
+	            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+	            transition: transform 0.2s ease;
+	        }
+
+	        .section:hover {
+	            transform: translateY(-2px);
+	        }
+
+	        .section-title {
+	            font-size: 24px;
+	            font-weight: bold;
+	            margin-bottom: 12px;
+	            color: #9c2424;
+	            border-bottom: 1px solid #ffcccc;
+	            padding-bottom: 5px;
+	        }
+
+	        .checkbox-item {
+	            display: flex;
+	            align-items: center;
+	            margin-bottom: 5px;
+				font-size: 22px;
+	        }
+
+	        .checkbox-item input[type="checkbox"] {
+	            margin-right: 10px;
+	        }
+
+	        .topic-list {
+	            list-style-type: none;
+	            padding: 0;
+	            margin: 0;
+	        }
+
+	        .topic-item {
+	            display: flex;
+	            margin-bottom: 8px;
+	            align-items: flex-start;
+	            padding: 5px;
+	            border-radius: 4px;
+	            transition: background-color 0.2s ease;
+	        }
+
+	        .topic-item:hover {
+	            background-color: #ffe6e6;
+	        }
+
+	        .topic-number {
+	            min-width: 28px;
+	            height: 28px;
+	            background-color: #9c2424;
+	            color: white;
+	            border-radius: 50%;
+	            display: flex;
+	            align-items: center;
+	            justify-content: center;
+	            margin-right: 15px;
+	            font-size: 18px;
+	            margin-top: 7px;
+	        }
+
+	        .topic-content {
+	            flex: 1;
+	            padding-top: 5px;
+	            font-size: 24px;
+	            opacity: 0.85;
+	        }
+	    </style>
+	    <script type="text/javascript" src="js/page-manager.js"></script>
+    <script type="text/javascript" src="js/list.js"></script>
+	</head>
+	<body oncontextmenu="return false">
+		<div class="header w3-card">
+			<button id="backButton" class="back-button">返回</button>
+			<h1 class="header-title"></h1>
+			<div id="current-time" class="current-time"></div>
+		</div>
+
+		<div class="content-container">
+			<!-- 会议安排部分 -->
+			<div class="section w3-card">
+				<div class="section-title">会议介绍</div>
+				<div class="checkbox-item">
+					<label for="meeting1"></label>
+				</div>
+			</div>
+
+			<!-- 议题部分将由JavaScript动态生成 -->
+		</div>
+	</body>
+</html>

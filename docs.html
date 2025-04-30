@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>图片文档查看器</title>
+    <link rel="stylesheet" href="css/pdf-viewer.css">
+    <script type="text/javascript">
+        document.addEventListener('plusready', function(){
+            //console.log("所有plus api都应该在此事件发生后调用，否则会出现plus is undefined。")
+        });
+        
+        // 触摸相关变量
+        let lastTouchDistance = 0;
+        let isZooming = false;
+        const MIN_SCALE = 0.5;
+        const MAX_SCALE = 3.0;
+        
+        let currentImage = 0;
+        let scale = 1.0;
+        let rotation = 0;
+        let imageUrl = 'http://192.168.3.84/test.jpg'; // 默认图片文件
+        let totalImages = 0;
+        let imageFiles = [];
+        
+        window.onload = function() {
+            // 显示控制栏
+            document.querySelector('.controls').style.display = 'flex';
+            
+            // 添加触摸事件监听
+            addTouchListeners();
+            
+            // 获取URL参数中的图片文件路径
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('file')) {
+                const fileParam = urlParams.get('file');
+                // 检查是否为完整URL（以http://或https://开头）
+                if (fileParam.startsWith('http://') || fileParam.startsWith('https://')) {
+                    imageUrl = fileParam;
+                } else {
+                    // 相对路径，添加docs/前缀
+                    imageUrl = 'docs/' + fileParam;
+                }
+                loadImage(imageUrl);
+            } else {
+                // 加载docs目录下的所有jpg文件
+                loadImagesFromDirectory();
+            }
+            
+            // 绑定按钮事件
+            document.getElementById('zoomIn').addEventListener('click', function() {
+                scale *= 1.2;
+                applyScaleToCurrentImage();
+            });
+            document.getElementById('zoomOut').addEventListener('click', function() {
+                scale /= 1.2;
+                applyScaleToCurrentImage();
+            });
+            document.getElementById('rotate').addEventListener('click', function() {
+                rotation = (rotation + 90) % 360;
+                applyRotationToCurrentImage();
+            });
+            
+            // 页码输入框事件
+            document.getElementById('page-input').addEventListener('change', function() {
+                const pageInput = parseInt(this.value);
+                if (pageInput >= 1 && pageInput <= totalImages) {
+                    currentImage = pageInput - 1;
+                    showCurrentImage();
+                } else {
+                    this.value = currentImage + 1;
+                }
+            });
+            
+            // 上一页按钮事件
+            document.getElementById('prev-page').addEventListener('click', function() {
+                if (currentImage > 0) {
+                    currentImage--;
+                    showCurrentImage();
+                }
+            });
+            
+            // 下一页按钮事件
+            document.getElementById('next-page').addEventListener('click', function() {
+                if (currentImage < totalImages - 1) {
+                    currentImage++;
+                    showCurrentImage();
+                }
+            });
+            
+            // 返回主页按钮事件
+            document.getElementById('back-to-home').addEventListener('click', function() {
+                window.location.href = 'index.html';
+            });
+        };
+        
+        function loadImagesFromDirectory() {
+            // 显示加载提示
+            document.querySelector('.loading').style.display = 'flex';
+            document.querySelector('.loading p').textContent = '正在加载图片文件...';
+            
+            // 这里我们假设已经知道docs目录下有哪些图片文件
+            // 在实际应用中，可能需要通过AJAX或其他方式获取文件列表
+            imageFiles = [
+                'http://192.168.3.84/test.jpg',
+                'docs/test_01.jpg',
+                'docs/test_02.jpg',
+                'docs/test_03.jpg',
+                'docs/test_04.jpg',
+                'docs/test_05.jpg',
+                'docs/test_06.jpg',
+                'docs/test_07.jpg',
+                'docs/test_08.jpg'
+            ];
+            
+            totalImages = imageFiles.length;
+            document.getElementById('page-count').textContent = totalImages;
+            
+            // 加载第一张图片
+            if (totalImages > 0) {
+                currentImage = 0;
+                showCurrentImage();
+            } else {
+                document.querySelector('.loading').style.display = 'none';
+                alert('没有找到图片文件');
+            }
+        }
+        
+        function loadImage(url) {
+            // 显示加载提示
+            document.querySelector('.loading').style.display = 'flex';
+            document.querySelector('.loading p').textContent = '正在加载图片文件...';
+            
+            // 创建图片元素
+            const img = new Image();
+            img.onload = function() {
+                // 图片加载完成后显示
+                document.querySelector('.loading').style.display = 'none';
+                
+                // 清空之前的内容
+                const imageViewer = document.getElementById('image-viewer');
+                imageViewer.innerHTML = '';
+                
+                // 创建图片容器
+                const imageContainer = document.createElement('div');
+                imageContainer.className = 'image-page';
+                
+                // 添加页码标签
+                const pageLabel = document.createElement('div');
+                pageLabel.className = 'page-label';
+                pageLabel.textContent = '图片 1 / 1';
+                imageContainer.appendChild(pageLabel);
+                
+                // 设置图片样式
+                img.style.maxWidth = '100%';
+                img.style.transform = `scale(${scale}) rotate(${rotation}deg)`;
+                // 初始状态下使用中心作为变换原点
+                img.style.transformOrigin = 'center';
+                img.style.transition = 'transform 0.2s';
+                
+                // 添加到容器
+                imageContainer.appendChild(img);
+                imageViewer.appendChild(imageContainer);
+                
+                // 更新页码
+                document.getElementById('page-input').value = 1;
+                document.getElementById('page-count').textContent = 1;
+                totalImages = 1;
+            };
+            
+            img.onerror = function() {
+                document.querySelector('.loading').style.display = 'none';
+                alert('图片加载失败，请确认文件存在并且格式正确。');
+                console.error('图片加载失败:', url);
+            };
+            
+            img.src = url;
+        }
+        
+        function showCurrentImage() {
+            if (currentImage < 0 || currentImage >= totalImages) {
+                return;
+            }
+            
+            // 显示加载提示
+            document.querySelector('.loading').style.display = 'flex';
+            document.querySelector('.loading p').textContent = '正在加载图片文件...';
+            
+            // 更新页码输入框
+            document.getElementById('page-input').value = currentImage + 1;
+            
+            // 创建图片元素
+            const img = new Image();
+            img.onload = function() {
+                // 图片加载完成后显示
+                document.querySelector('.loading').style.display = 'none';
+                
+                // 清空之前的内容
+                const imageViewer = document.getElementById('image-viewer');
+                imageViewer.innerHTML = '';
+                
+                // 创建图片容器
+                const imageContainer = document.createElement('div');
+                imageContainer.className = 'image-page';
+                
+                // 添加页码标签
+                const pageLabel = document.createElement('div');
+                pageLabel.className = 'page-label';
+                pageLabel.textContent = `图片 ${currentImage + 1} / ${totalImages}`;
+                imageContainer.appendChild(pageLabel);
+                
+                // 设置图片样式
+                img.style.maxWidth = '100%';
+                img.style.transform = `scale(${scale}) rotate(${rotation}deg)`;
+                // 初始状态下使用中心作为变换原点
+                img.style.transformOrigin = 'center';
+                img.style.transition = 'transform 0.2s';
+                
+                // 添加到容器
+                imageContainer.appendChild(img);
+                imageViewer.appendChild(imageContainer);
+            };
+            
+            img.onerror = function() {
+                document.querySelector('.loading').style.display = 'none';
+                alert('图片加载失败，请确认文件存在并且格式正确。');
+            };
+            
+            // 获取当前图片URL
+            const currentUrl = imageFiles[currentImage];
+            img.src = currentUrl;
+        }
+        
+        function applyScaleToCurrentImage() {
+            const img = document.querySelector('#image-viewer img');
+            if (img) {
+                img.style.transform = `scale(${scale}) rotate(${rotation}deg)`;
+            }
+        }
+        
+        function applyRotationToCurrentImage() {
+            const img = document.querySelector('#image-viewer img');
+            if (img) {
+                img.style.transform = `scale(${scale}) rotate(${rotation}deg)`;
+            }
+        }
+        
+        // 添加触摸事件监听器
+        function addTouchListeners() {
+            const imageViewer = document.getElementById('image-viewer');
+            
+            // 触摸开始事件
+            imageViewer.addEventListener('touchstart', function(e) {
+                if (e.touches.length === 2) {
+                    // 双指触摸开始，计算初始距离
+                    isZooming = true;
+                    lastTouchDistance = getTouchDistance(e.touches);
+                    e.preventDefault(); // 阻止默认行为
+                }
+            }, { passive: false });
+            
+            // 触摸移动事件
+            imageViewer.addEventListener('touchmove', function(e) {
+                if (isZooming && e.touches.length === 2) {
+                    // 计算当前两指距离
+                    const currentDistance = getTouchDistance(e.touches);
+                    
+                    // 计算缩放比例变化
+                    const delta = currentDistance / lastTouchDistance;
+                    
+                    // 更新缩放比例
+                    const newScale = scale * delta;
+                    
+                    // 计算双指中心点作为缩放原点
+                    const touchCenter = getTouchCenter(e.touches);
+                    const img = document.querySelector('#image-viewer img');
+                    
+                    // 限制缩放范围
+                    if (newScale >= MIN_SCALE && newScale <= MAX_SCALE) {
+                        scale = newScale;
+                        // 设置缩放原点为双指中心点
+                        if (img) {
+                            // 将触摸中心点坐标转换为相对于图片的百分比位置
+                            const rect = img.getBoundingClientRect();
+                            const originX = ((touchCenter.x - rect.left) / rect.width) * 100;
+                            const originY = ((touchCenter.y - rect.top) / rect.height) * 100;
+                            
+                            // 应用新的变换原点和缩放
+                            img.style.transformOrigin = `${originX}% ${originY}%`;
+                            img.style.transform = `scale(${scale}) rotate(${rotation}deg)`;
+                        }
+                    }
+                    
+                    // 更新上次触摸距离
+                    lastTouchDistance = currentDistance;
+                    
+                    e.preventDefault(); // 阻止默认行为
+                }
+            }, { passive: false });
+            
+            // 触摸结束事件
+            imageViewer.addEventListener('touchend', function(e) {
+                if (e.touches.length < 2) {
+                    isZooming = false;
+                }
+            });
+            
+            // 触摸取消事件
+            imageViewer.addEventListener('touchcancel', function(e) {
+                isZooming = false;
+            });
+        }
+        
+        // 计算两个触摸点之间的距离
+        function getTouchDistance(touches) {
+            const dx = touches[0].clientX - touches[1].clientX;
+            const dy = touches[0].clientY - touches[1].clientY;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+        
+        // 计算两个触摸点的中心点
+        function getTouchCenter(touches) {
+            return {
+                x: (touches[0].clientX + touches[1].clientX) / 2,
+                y: (touches[0].clientY + touches[1].clientY) / 2
+            };
+        }
+    </script>
+</head>
+<body>
+    <div class="pdf-container">
+        <div class="controls">
+            <button id="back-to-home">返回主页</button>
+            <div class="page-controls">
+                <button id="prev-page">上一页</button>
+                <input type="number" id="page-input" min="1" value="1">
+                <span>/ <span id="page-count">0</span></span>
+                <button id="next-page">下一页</button>
+            </div>
+            <button id="zoomIn">放大</button>
+            <button id="zoomOut">缩小</button>
+            <button id="rotate">旋转</button>
+        </div>
+        
+        <div id="image-viewer">
+            <!-- 图片将在这里动态生成 -->
+        </div>
+        
+        <div class="loading">
+            <div class="spinner"></div>
+            <p>正在加载图片文件...</p>
+        </div>
+    </div>
+</body>
+</html>

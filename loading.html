@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no" />
+    <title>读取中</title>
+    <link rel="stylesheet" href="css/w3.css">
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/loading.css">
+    <script src="js/page-manager.js"></script>
+    <script src="js/loading-service.js"></script>
+    <script src="js/loading.js"></script>
+</head>
+<body oncontextmenu="return false">
+    <div class="logo">
+        <img src="img/huiyi-logo.png" alt="会议系统Logo">
+        <span class="logo-text"></span>
+    </div>
+
+    <div class="loading-container">
+        <div class="loading-title">无纸化会议系统</div>
+
+        <!-- 会议选择模态框 -->
+        <div id="meeting-selection-modal" class="meeting-selection-modal" style="display: none;">
+            <div class="modal-overlay"></div>
+            <div id="meeting-selection" class="meeting-selection">
+                <h2>请选择要加入的会议</h2>
+                <div class="meeting-list" id="meeting-list">
+                    <!-- 会议选项将通过JavaScript动态添加 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 加载界面 -->
+        <div id="loading-progress" class="loading-progress">
+            <div class="loading-spinner"></div>
+            <div class="progress-container">
+                <div class="progress-bar" id="loadingProgress"></div>
+            </div>
+            <div class="loading-text pulse">正在初始化系统...</div>
+            <div class="download-info" style="display: none;">
+                <div class="node-info">下载节点: <span id="current-node">-</span></div>
+                <div class="download-size">已下载: <span id="downloaded-size">0</span> / <span id="total-size">0</span></div>
+            </div>
+            <div class="error-text">加载过程中出现错误</div>
+            <!-- 取消更新按钮 - 默认显示 -->
+            <button id="cancel-update-btn" class="cancel-update-btn" onclick="cancelUpdate()">取消更新</button>
+        </div>
+    </div>
+
+    <!-- 会议选择界面 -->
+    <div class="meeting-selection" style="display: none;">
+        <div class="selection-title">请选择要加载的会议</div>
+        <div class="meeting-list" id="meetingList">
+            <!-- 会议项将通过JavaScript动态添加 -->
+        </div>
+    </div>
+
+    <!-- 按钮容器已移除 -->
+
+    <script>
+        // 关闭当前页面函数
+        function closeCurrentPage() {
+            if (typeof plus !== 'undefined' && plus.webview) {
+                console.log('关闭当前页面');
+                const currentWebview = plus.webview.currentWebview();
+                currentWebview.close();
+            } else {
+                console.error('plus环境未就绪或不支持webview，无法关闭页面');
+                // 可以在非plus环境下提供备选方案，例如 window.close()，但这通常只对由脚本打开的窗口有效
+                // window.close();
+            }
+        }
+
+        // 重试加载函数（保留但不再使用）
+        function retryLoading() {
+            console.log('重试加载');
+            // 隐藏错误消息
+            hideError();
+            // 重置进度条
+            setProgress(0);
+            // 重新开始加载过程
+            if (typeof fetchMeetingData === 'function') {
+                fetchMeetingData();
+            }
+        }
+
+        // 取消更新函数
+        function cancelUpdate() {
+            console.log('取消更新');
+            // 隐藏取消按钮
+            document.getElementById('cancel-update-btn').style.display = 'none';
+            // 更新加载文本
+            updateLoadingText('正在取消更新...');
+            // 触发取消事件
+            if (typeof LoadingService !== 'undefined') {
+                LoadingService.cancelOperation();
+                console.log('已触发取消操作');
+            } else {
+                console.error('LoadingService未定义，无法取消操作');
+                // 显示错误消息
+                showError('LoadingService未定义，无法取消操作');
+            }
+        }
+
+        // 显示错误消息函数
+        function showError(message) {
+            const errorText = document.querySelector('.error-text');
+            if (errorText) {
+                errorText.textContent = message || '加载过程中出现错误';
+                errorText.style.display = 'block';
+                // 不再显示重试按钮，因为我们已经移除了按钮
+            }
+        }
+
+        // 隐藏错误消息函数
+        function hideError() {
+            const errorText = document.querySelector('.error-text');
+            if (errorText) {
+                errorText.style.display = 'none';
+            }
+        }
+
+        // 设置进度条函数
+        function setProgress(percent) {
+            const progressBar = document.getElementById('loadingProgress');
+            if (progressBar) {
+                progressBar.style.width = percent + '%';
+            }
+        }
+
+        // 更新加载文本函数
+        function updateLoadingText(text) {
+            const loadingText = document.querySelector('.loading-text');
+            if (loadingText) {
+                loadingText.textContent = text;
+            }
+        }
+
+        // 显示取消更新按钮
+        function showCancelButton() {
+            const cancelButton = document.getElementById('cancel-update-btn');
+            if (cancelButton) {
+                cancelButton.style.display = 'block';
+                console.log('取消更新按钮已显示');
+            }
+        }
+
+        // 隐藏取消更新按钮
+        function hideCancelButton() {
+            const cancelButton = document.getElementById('cancel-update-btn');
+            if (cancelButton) {
+                cancelButton.style.display = 'none';
+                console.log('取消更新按钮已隐藏');
+            }
+        }
+
+        // 显示按钮函数
+        function showButtons() {
+            document.querySelector('.return-button').style.display = 'block';
+            document.querySelector('.close-button').style.display = 'block';
+        }
+
+        // 重写showReturnButton函数，使用新的样式和行为
+        window.showReturnButton = function() {
+            showButtons();
+            console.log('按钮已显示');
+        };
+
+        // 页面加载完成后初始化UI
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('loading页面DOM加载完成');
+
+            // 初始化进度条
+            setProgress(5);
+
+            // 初始化加载文本
+            updateLoadingText('正在初始化系统...');
+
+            // 取消按钮始终显示，不需要隐藏
+            // hideCancelButton();
+
+            // 隐藏错误消息
+            hideError();
+        });
+
+        // 将显示取消按钮函数添加到全局作用域
+        window.showCancelButton = showCancelButton;
+        window.hideCancelButton = hideCancelButton;
+    </script>
+</body>
+</html>

@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>PDF阅读器</title>
+    <link rel="stylesheet" href="css/pdf-viewer.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script type="text/javascript">
+        document.addEventListener('plusready', function(){
+            //console.log("所有plus api都应该在此事件发生后调用，否则会出现plus is undefined。")
+        });
+        
+        // 触摸相关变量
+        let lastTouchDistance = 0;
+        let isZooming = false;
+        const MIN_SCALE = 0.5;
+        const MAX_SCALE = 3.0;
+        
+        // 指定workerSrc
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        
+        let pdfDoc = null;
+        let pageNum = 1;
+        let scale = 1.5;
+        let rotation = 0;
+        let pdfUrl = 'test.pdf'; // 默认PDF文件
+        let renderedPages = 0;
+        let totalPages = 0;
+        let currentFileName = ''; // 当前文件名
+        
+        // 批注相关变量
+        let isDrawing = false;
+        let currentTool = 'pen';
+        let currentColor = '#ff0000';
+        let currentLineWidth = 2;
+        let annotations = {};
+        
+        window.onload = function() {
+            // 显示控制栏
+            document.querySelector('.controls').style.display = 'flex';
+            
+            // 初始化批注工具
+            initAnnotationTools();
+            
+            // 添加触摸事件监听
+            addTouchListeners();
+            
+            // 获取URL参数中的文件名
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('filename')) {
+                const filename = urlParams.get('filename');
+                // 构建完整的PDF文件路径，添加.pdf扩展名
+                pdfUrl = 'doc/documents/' + filename + '.pdf';
+            }
+            
+            // 加载PDF文件
+            loadPDF(pdfUrl);
+            
+            // 绑定按钮事件
+            document.getElementById('zoomIn').addEventListener('click', function() {
+                scale *= 1.2;
+                reloadAllPages();
+            });
+            document.getElementById('zoomOut').addEventListener('click', function() {
+                scale /= 1.2;
+                reloadAllPages();
+            });
+            document.getElementById('rotate').addEventListener('click', function() {
+                rotation = (rotation + 90) % 360;
+                reloadAllPages();
+            });
+            
+            // 页码输入框事件
+            document.getElementById('page-input').addEventListener('change', function() {
+                const pageInput = parseInt(this.value);
+                if (pageInput >= 1 && pageInput <= totalPages) {
+                    pageNum = pageInput;
+                    scrollToPage(pageNum);
+                } else {
+                    this.value = pageNum;
+                }
+            });
+            
+            // 文件选择事件
+            document.getElementById('file-input').addEventListener('change', function(e) {
+                if (e.target.files.length > 0) {
+                    const file = e.target.files[0];
+                    if (file.type === 'application/pdf') {
+                        const fileUrl = URL.createObjectURL(file);
+                        loadPDF(fileUrl);
+                    } else {
+                        alert('请选择PDF文件');
+                    }
+                }
+            });
+            
+            // 返回列表按钮事件
+            document.getElementById('back-to-list').addEventListener('click', function() {
+                window.location.href = 'list.html';
+            });
+        };
+        
+        function loadPDF(url) {
+            // 显示加载提示
+            document.querySelector('.loading').style.display = 'flex';
+            
+            // 清空之前的内容
+            const pdfViewer = document.getElementById('pdf-viewer');
+            pdfViewer.innerHTML = '';
+            renderedPages = 0;
+            
+            // 提取并显示文件名
+            extractAndDisplayFileName(url);
+            
+            pdfjsLib.getDocument(url).promise.then(function(pdf) {
+                pdfDoc = pdf;
+                totalPages = pdf.numPages;
+                document.getElementById('page-count').textContent = totalPages;
+                document.querySelector('.loading').style.display = 'none';
+                
+                // 渲染所有页面
+                renderAllPages();
+            }).catch(function(error) {
+                document.querySelector('.loading').style.display = 'none';
+                console.error('Error loading PDF:', error);
+                alert('PDF文件加载失败，请确认文件存在并且格式正确。');
+            });
+        }
+        
+        function renderAllPages() {
+            const pdfViewer = document.getElementById('pdf-viewer');
+            
+            // 显示加载进度
+            const loadingText = document.querySelector('.loading p');
+            loadingText.textContent = '正在渲染PDF页面...';
+            document.querySelector('.loading').style.display = 'flex';
+            
+            // 渲染每一页
+            for (let i = 1; i <= pdfDoc.numPages; i++) {
+                renderPage(i);
+            }
+        }
+        
+        function renderPage(num) {
+            const pdfViewer = document.getElementById('pdf-viewer');
+            
+            // 创建页面容器
+            const pageContainer = document.createElement('div');
+            pageContainer.className = 'pdf-page';
+            pageContainer.id = 'page-' + num;
+            pageContainer.style.position = 'relative';
+            
+            // 添加页码标签
+            const pageLabel = document.createElement('div');
+            pageLabel.className = 'page-label';
+            pageLabel.textContent = '第 ' + num + ' 页';
+            pageContainer.appendChild(pageLabel);
+            
+            // 创建PDF画布
+            const canvas = document.createElement('canvas');
+            canvas.id = 'canvas-' + num;
+            pageContainer.appendChild(canvas);
+            
+            // 创建批注画布
+            const annotationCanvas = document.createElement('canvas');
+            annotationCanvas.id = 'annotation-canvas-' + num;
+            annotationCanvas.className = 'annotation-canvas';
+            pageContainer.appendChild(annotationCanvas);
+            
+            // 添加到查看器
+            pdfViewer.appendChild(pageContainer);
+            
+            // 渲染页面内容
+            pdfDoc.getPage(num).then(function(page) {
+                const ctx = canvas.getContext('2d');
+                let viewport = page.getViewport({scale: scale, rotation: rotation});
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+                
+                // 设置初始样式宽高，为后续缩放做准备
+                canvas.style.width = viewport.width + 'px';
+                canvas.style.height = viewport.height + 'px';
+                
+                let renderContext = {
+                    canvasContext: ctx,
+                    viewport: viewport
+                };
+                
+                page.render(renderContext).promise.then(function() {
+                    renderedPages++;
+                    
+                    // 检查是否所有页面都已渲染完成
+                    if (renderedPages === pdfDoc.numPages) {
+                        document.querySelector('.loading').style.display = 'none';
+                    }
+                });
+            });
+        }
+        
+        function reloadAllPages() {
+            // 清空之前的内容
+            const pdfViewer = document.getElementById('pdf-viewer');
+            pdfViewer.innerHTML = '';
+            renderedPages = 0;
+            
+            // 重新渲染所有页面
+            renderAllPages();
+        }
+        
+        // 提取并显示文件名和路径
+        function extractAndDisplayFileName(url) {
+            // 从URL中提取文件名
+            let fileName = '';
+            let filePath = url; // 保存完整路径
+            
+            if (url.startsWith('blob:')) {
+                // 如果是本地上传的文件（blob URL）
+                fileName = document.getElementById('file-input').files[0]?.name || '本地文件';
+                filePath = '本地上传文件';
+            } else {
+                // 从路径中提取文件名
+                const urlParts = url.split('/');
+                fileName = urlParts[urlParts.length - 1];
+                
+                // 移除.pdf扩展名（如果有）
+                if (fileName.toLowerCase().endsWith('.pdf')) {
+                    fileName = fileName.substring(0, fileName.length - 4);
+                }
+                
+                // 解码URL编码的字符
+                try {
+                    fileName = decodeURIComponent(fileName);
+                    filePath = decodeURIComponent(url);
+                } catch (e) {
+                    // 如果解码失败，使用原始文件名
+                    console.error('Error decoding filename:', e);
+                }
+            }
+            
+            // 更新当前文件名
+            currentFileName = fileName;
+            
+            // 更新显示
+            document.getElementById('current-filename').textContent = fileName;
+            document.getElementById('file-path').textContent = filePath;
+        }
+        
+        function scrollToPage(num) {
+            const pageElement = document.getElementById('page-' + num);
+            if (pageElement) {
+                pageElement.scrollIntoView({behavior: 'smooth'});
+            }
+        }
+        
+        // 添加触摸事件监听器
+        function addTouchListeners() {
+            const pdfViewer = document.getElementById('pdf-viewer');
+            
+            // 触摸开始事件
+            pdfViewer.addEventListener('touchstart', function(e) {
+                if (e.touches.length === 2) {
+                    // 双指触摸开始，计算初始距离
+                    isZooming = true;
+                    lastTouchDistance = getTouchDistance(e.touches);
+                    e.preventDefault(); // 阻止默认行为
+                }
+            }, { passive: false });
+            
+            // 触摸移动事件
+            pdfViewer.addEventListener('touchmove', function(e) {
+                if (isZooming && e.touches.length === 2) {
+                    // 计算当前两指距离
+                    const currentDistance = getTouchDistance(e.touches);
+                    
+                    // 计算缩放比例变化
+                    const delta = currentDistance / lastTouchDistance;
+                    
+                    // 更新缩放比例
+                    const newScale = scale * delta;
+                    
+                    // 限制缩放范围
+                    if (newScale >= MIN_SCALE && newScale <= MAX_SCALE) {
+                        scale = newScale;
+                        // 直接应用缩放而不重新渲染页面
+                        applyScaleToPages(delta);
+                    }
+                    
+                    // 更新上次触摸距离
+                    lastTouchDistance = currentDistance;
+                    
+                    e.preventDefault(); // 阻止默认行为
+                }
+            }, { passive: false });
+            
+            // 触摸结束事件
+            pdfViewer.addEventListener('touchend', function(e) {
+                if (e.touches.length < 2) {
+                    isZooming = false;
+                }
+            });
+            
+            // 触摸取消事件
+            pdfViewer.addEventListener('touchcancel', function(e) {
+                isZooming = false;
+            });
+        }
+        
+        // 计算两个触摸点之间的距离
+        function getTouchDistance(touches) {
+            const dx = touches[0].clientX - touches[1].clientX;
+            const dy = touches[0].clientY - touches[1].clientY;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+        
+        // 直接应用缩放到所有页面，不重新渲染，保持画面比例
+        function applyScaleToPages(delta) {
+            const pages = document.querySelectorAll('.pdf-page');
+            pages.forEach(function(page) {
+                const canvas = page.querySelector('canvas');
+                const annotationCanvas = page.querySelector('.annotation-canvas');
+                if (canvas && annotationCanvas) {
+                    // 获取当前宽高
+                    const currentWidth = parseFloat(canvas.style.width || canvas.width);
+                    const currentHeight = parseFloat(canvas.style.height || canvas.height);
+                    
+                    // 计算新的缩放比例，但保持宽高比
+                    const newScale = scale;
+                    
+                    // 根据新的缩放比例设置尺寸
+                    const newWidth = canvas.width * newScale;
+                    const newHeight = canvas.height * newScale;
+                    
+                    // 设置新的样式
+                    canvas.style.width = newWidth + 'px';
+                    canvas.style.height = newHeight + 'px';
+                    
+                    // 同步批注画布大小
+                    annotationCanvas.style.width = newWidth + 'px';
+                    annotationCanvas.style.height = newHeight + 'px';
+                    annotationCanvas.width = newWidth;
+                    annotationCanvas.height = newHeight;
+                    
+                    // 重新绘制批注
+                    redrawAnnotations(page.id.split('-')[1]);
+                }
+            });
+        }
+        
+        // 初始化批注工具
+        function initAnnotationTools() {
+            // 检查是否是首次使用
+            if (!localStorage.getItem('pdf_annotation_tutorial_shown')) {
+                document.getElementById('first-time-tooltip').classList.add('show');
+                localStorage.setItem('pdf_annotation_tutorial_shown', 'true');
+            }
+
+            // 工具按钮事件
+            document.getElementById('pen-tool').addEventListener('click', function() {
+                currentTool = 'pen';
+                this.classList.add('active');
+                document.getElementById('eraser-tool').classList.remove('active');
+                showTooltip('画笔工具已激活 - 开始在PDF上绘制标注');
+            });
+            
+            document.getElementById('eraser-tool').addEventListener('click', function() {
+                currentTool = 'eraser';
+                this.classList.add('active');
+                document.getElementById('pen-tool').classList.remove('active');
+                showTooltip('橡皮擦已激活 - 点击要擦除的标注');
+            });
+
+            // 显示临时提示信息
+            function showTooltip(message) {
+                const tooltip = document.createElement('div');
+                tooltip.className = 'temporary-tooltip';
+                tooltip.textContent = message;
+                document.body.appendChild(tooltip);
+                setTimeout(() => tooltip.remove(), 2000);
+            }
+            
+            // 颜色选择器事件
+            document.getElementById('color-picker').addEventListener('change', function(e) {
+                currentColor = e.target.value;
+            });
+            
+            // 线条粗细事件
+            document.getElementById('line-width').addEventListener('input', function(e) {
+                currentLineWidth = parseInt(e.target.value);
+            });
+            
+            // 清除批注事件
+            document.getElementById('clear-annotations').addEventListener('click', function() {
+                if (confirm('确定要清除所有批注吗？')) {
+                    annotations = {};
+                    const annotationCanvases = document.querySelectorAll('.annotation-canvas');
+                    annotationCanvases.forEach(canvas => {
+                        const ctx = canvas.getContext('2d');
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    });
+                }
+            });
+            
+            // 保存批注事件
+            document.getElementById('save-annotations').addEventListener('click', function() {
+                const annotationData = JSON.stringify(annotations);
+                localStorage.setItem('pdf_annotations_' + pdfUrl, annotationData);
+                alert('批注已保存');
+            });
+            
+            // 为每个PDF页面添加批注事件
+            const pdfViewer = document.getElementById('pdf-viewer');
+            pdfViewer.addEventListener('mousedown', startDrawing);
+            pdfViewer.addEventListener('mousemove', draw);
+            pdfViewer.addEventListener('mouseup', stopDrawing);
+            pdfViewer.addEventListener('mouseleave', stopDrawing);
+        }
+        
+        // 开始绘制
+        function startDrawing(e) {
+            if (e.target.classList.contains('annotation-canvas')) {
+                isDrawing = true;
+                const canvas = e.target;
+                const ctx = canvas.getContext('2d');
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                
+                // 初始化页面的批注数组
+                const pageNum = canvas.id.split('-')[2];
+                if (!annotations[pageNum]) {
+                    annotations[pageNum] = [];
+                }
+                
+                // 添加新的批注路径
+                annotations[pageNum].push({
+                    tool: currentTool,
+                    color: currentColor,
+                    lineWidth: currentLineWidth,
+                    points: [{x, y}]
+                });
+            }
+        }
+        
+        // 绘制
+        function draw(e) {
+            if (!isDrawing || !e.target.classList.contains('annotation-canvas')) return;
+            
+            const canvas = e.target;
+            const ctx = canvas.getContext('2d');
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            ctx.lineTo(x, y);
+            ctx.strokeStyle = currentTool === 'eraser' ? '#ffffff' : currentColor;
+            ctx.lineWidth = currentLineWidth;
+            ctx.lineCap = 'round';
+            ctx.stroke();
+            
+            // 添加点到当前路径
+            const pageNum = canvas.id.split('-')[2];
+            const currentPath = annotations[pageNum][annotations[pageNum].length - 1];
+            currentPath.points.push({x, y});
+        }
+        
+        // 停止绘制
+        function stopDrawing() {
+            isDrawing = false;
+        }
+        
+        // 重新绘制批注
+        function redrawAnnotations(pageNum) {
+            if (!annotations[pageNum]) return;
+            
+            const canvas = document.getElementById('annotation-canvas-' + pageNum);
+            if (!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            annotations[pageNum].forEach(path => {
+                ctx.beginPath();
+                ctx.strokeStyle = path.tool === 'eraser' ? '#ffffff' : path.color;
+                ctx.lineWidth = path.lineWidth;
+                ctx.lineCap = 'round';
+                
+                const points = path.points;
+                if (points.length > 0) {
+                    ctx.moveTo(points[0].x, points[0].y);
+                    points.forEach(point => ctx.lineTo(point.x, point.y));
+                    ctx.stroke();
+                }
+            });
+        }
+    </script>
+</head>
+<body>
+    <div class="pdf-container">
+        <div class="controls">
+            <button id="back-to-list">返回列表</button>
+            <div class="filename-display">
+                <span>当前文件：</span>
+                <span id="current-filename">未选择文件</span>
+            </div>
+            <div class="filepath-display">
+                <span>文件路径：</span>
+                <span id="file-path">未选择文件</span>
+            </div>
+            <div class="page-controls">
+                <input type="number" id="page-input" min="1" value="1">
+                <span>/ <span id="page-count">0</span></span>
+                <button id="go-to-page">跳转</button>
+            </div>
+            <button id="zoomIn">放大</button>
+            <button id="zoomOut">缩小</button>
+            <button id="rotate">旋转</button>
+            <label for="file-input" class="file-label">打开文件</label>
+            <input type="file" id="file-input" accept="application/pdf" style="display:none">
+        </div>
+        
+        <div class="annotation-toolbar" style="display: none;">
+            <div class="tool-group">
+                <button id="pen-tool" class="tooltip" title="画笔工具 - 用于在PDF上添加标注">
+                    <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                    画笔
+                </button>
+                <button id="eraser-tool" class="tooltip" title="橡皮擦 - 用于擦除标注">
+                    <svg viewBox="0 0 24 24"><path d="M15.14 3c-.51 0-1.02.2-1.41.59L2.59 14.73c-.78.78-.78 2.05 0 2.83l3.85 3.85c.78.78 2.05.78 2.83 0L20.41 10.27c.78-.78.78-2.05 0-2.83l-3.85-3.85c-.39-.39-.9-.59-1.42-.59z"/></svg>
+                    橡皮擦
+                </button>
+            </div>
+            <div class="tool-group">
+                <input type="color" id="color-picker" class="color-picker tooltip" value="#4a90e2" title="选择颜色 - 设置标注的颜色">
+                <div class="tooltip" title="线条粗细 - 调整标注的粗细程度">
+                    <input type="range" id="line-width" min="1" max="10" value="2">
+                </div>
+            </div>
+            <div class="tool-group">
+                <button id="clear-annotations" class="tooltip" title="清除 - 删除所有标注">
+                    <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                    清除
+                </button>
+                <button id="save-annotations" class="tooltip" title="保存 - 保存当前的所有标注">
+                    <svg viewBox="0 0 24 24"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg>
+                    保存
+                </button>
+            </div>
+        </div>
+        <div class="first-time-tooltip" id="first-time-tooltip">
+            <h3>欢迎使用PDF批注功能！</h3>
+            <p>使用画笔工具在PDF上添加标注，使用橡皮擦删除不需要的标注。</p>
+            <p>您可以随时更改颜色和线条粗细，完成后记得保存您的标注。</p>
+            <button onclick="this.parentElement.style.display='none'">知道了</button>
+        </div>
+        
+        <div id="pdf-viewer">
+            <!-- PDF页面将在这里动态生成 -->
+        </div>
+        
+        <div class="loading">
+            <div class="spinner"></div>
+            <p>正在加载PDF文件...</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,528 @@
+/* loading.css - 专门为loading页面提供的样式 */
+
+/* 基础样式 */
+.loading-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 9999;
+}
+
+/* 标题样式 */
+.loading-title {
+    font-size: 28px;
+    color: #FFFFFF;
+    font-weight: bold;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    margin-bottom: 30px;
+}
+
+/* 加载文本样式 */
+.loading-text {
+    font-size: 18px;
+    color: #FFFFFF;
+    font-weight: bold;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
+    margin-top: 20px;
+    text-align: center;
+    max-width: 80%;
+}
+
+/* 会议选择模态框样式 */
+.meeting-selection-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000; /* 确保模态框显示在最上层 */
+    backdrop-filter: blur(5px); /* 背景模糊效果 */
+}
+
+.modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    z-index: 10001;
+    animation: fadeIn 0.3s ease forwards;
+}
+
+/* 会议选择界面样式 */
+.meeting-selection {
+    width: 90%;
+    max-width: 500px;
+    background-color: #ffffff;
+    border-radius: 16px;
+    padding: 25px;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3), 0 5px 15px rgba(0, 0, 0, 0.2);
+    z-index: 10002; /* 确保显示在遮罩层之上 */
+    animation: zoomIn 0.4s cubic-bezier(0.165, 0.84, 0.44, 1) forwards;
+    position: relative;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.meeting-selection h2 {
+    color: #2c3e50;
+    text-align: center;
+    margin-bottom: 25px;
+    font-size: 24px;
+    font-weight: 600;
+    position: relative;
+    padding-bottom: 12px;
+}
+
+.meeting-selection h2:after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60px;
+    height: 3px;
+    background: linear-gradient(90deg, #4CAF50, #8BC34A);
+    border-radius: 3px;
+}
+
+.meeting-list {
+    max-height: 350px;
+    overflow-y: auto;
+    margin-bottom: 20px;
+    padding: 5px;
+}
+
+.meeting-item {
+    background-color: #f9f9f9;
+    border-radius: 12px;
+    padding: 18px;
+    margin-bottom: 15px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-left: 5px solid #4CAF50;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    position: relative;
+    overflow: hidden;
+}
+
+.meeting-item:before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, rgba(76, 175, 80, 0.1) 0%, rgba(255, 255, 255, 0) 60%);
+    z-index: 0;
+}
+
+.meeting-item:hover {
+    background-color: #f5f5f5;
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.meeting-item h3 {
+    margin: 0 0 8px 0;
+    color: #2c3e50;
+    font-size: 18px;
+    font-weight: 600;
+    position: relative;
+    z-index: 1;
+}
+
+.meeting-item p {
+    margin: 0;
+    color: #7f8c8d;
+    font-size: 14px;
+    position: relative;
+    z-index: 1;
+}
+
+.meeting-item.selected {
+    background-color: #e8f5e9;
+    border-left: 5px solid #2E7D32;
+    box-shadow: 0 5px 15px rgba(46, 125, 50, 0.2);
+}
+
+/* 自定义滚动条样式 */
+.meeting-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.meeting-list::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+.meeting-list::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 10px;
+}
+
+.meeting-list::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* 加载进度界面样式 */
+.loading-progress {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+}
+
+/* 下载信息样式 */
+.download-info {
+    font-size: 14px;
+    color: #FFFFFF;
+    margin-top: 15px;
+    text-align: center;
+    max-width: 80%;
+    background-color: rgba(0, 0, 0, 0.3);
+    padding: 10px 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.node-info {
+    margin-bottom: 5px;
+}
+
+.download-size {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+#current-node {
+    font-weight: bold;
+    color: #4CAF50;
+    text-shadow: 0 0 5px rgba(76, 175, 80, 0.5);
+}
+
+#downloaded-size, #total-size {
+    font-weight: bold;
+}
+
+/* 错误文本样式 */
+.error-text {
+    font-size: 16px;
+    color: #FF6B6B;
+    font-weight: bold;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
+    margin-top: 10px;
+    display: none;
+    text-align: center;
+    max-width: 80%;
+}
+
+/* 按钮容器 */
+.button-container {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 20px;
+    z-index: 10000;
+}
+
+/* 按钮基础样式 */
+.loading-button {
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+    display: none;
+    border: none;
+    outline: none;
+}
+
+/* 返回按钮样式 */
+.return-button {
+    background-color: #4CAF50;
+    color: white;
+}
+
+.return-button:hover {
+    background-color: #45a049;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* 关闭按钮样式 */
+.close-button {
+    background-color: #f44336;
+    color: white;
+}
+
+.close-button:hover {
+    background-color: #d32f2f;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* 重试按钮样式 */
+.retry-button {
+    background-color: #2196F3;
+    color: white;
+}
+
+.retry-button:hover {
+    background-color: #0b7dda;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* 取消更新按钮样式 */
+.cancel-update-btn {
+    background-color: #FF9800;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    border: none;
+    outline: none;
+    margin-top: 20px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+}
+
+.cancel-update-btn:hover {
+    background-color: #F57C00;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+}
+
+.cancel-update-btn:active {
+    transform: translateY(1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* 现代化加载动画 */
+.loading-spinner {
+    width: 80px;
+    height: 80px;
+    position: relative;
+}
+
+.loading-spinner:before,
+.loading-spinner:after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 5px solid transparent;
+    border-top-color: #4CAF50;
+}
+
+.loading-spinner:before {
+    z-index: 10;
+    animation: spin 1s infinite linear;
+}
+
+.loading-spinner:after {
+    border: 5px solid rgba(255, 255, 255, 0.1);
+}
+
+/* 进度条容器 */
+.progress-container {
+    width: 300px;
+    height: 8px;
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    margin-top: 20px;
+    overflow: hidden;
+}
+
+/* 进度条 */
+.progress-bar {
+    height: 100%;
+    width: 0%;
+    background-color: #4CAF50;
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+/* 动画定义 */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* 淡入动画 */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* 淡出动画 */
+@keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+/* 应用淡入动画 */
+.fade-in {
+    animation: fadeIn 0.5s ease forwards;
+}
+
+/* 应用淡出动画 */
+.fade-out {
+    animation: fadeOut 0.5s ease forwards;
+}
+
+/* 脉冲动画 */
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+/* 应用脉冲动画到加载文本 */
+.pulse {
+    animation: pulse 2s infinite ease-in-out;
+}
+
+/* 缩放动画 */
+@keyframes zoomIn {
+    from {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* 会议时间和简介样式 */
+.meeting-time {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+    color: #3498db;
+    font-weight: 500;
+}
+
+.meeting-intro {
+    color: #7f8c8d;
+    font-size: 14px;
+    line-height: 1.4;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed rgba(0, 0, 0, 0.1);
+}
+
+/* 图标样式 */
+.meeting-icon {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    margin-right: 6px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.time-icon {
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%233498db"><path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12.5,7H11V13L16.2,16.2L17,14.9L12.5,12.2V7Z"></path></svg>');
+}
+
+/* 滑动条样式 */
+.meeting-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.meeting-list::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+}
+
+.meeting-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+}
+
+.meeting-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .loading-title {
+        font-size: 24px;
+    }
+
+    .loading-text {
+        font-size: 16px;
+    }
+
+    .progress-container {
+        width: 250px;
+    }
+
+    .loading-spinner {
+        width: 60px;
+        height: 60px;
+    }
+
+    .button-container {
+        bottom: 20px;
+    }
+
+    .loading-button {
+        padding: 10px 20px;
+        font-size: 14px;
+    }
+}
+
+@media (max-width: 480px) {
+    .loading-title {
+        font-size: 20px;
+    }
+
+    .loading-text {
+        font-size: 14px;
+    }
+
+    .progress-container {
+        width: 200px;
+    }
+
+    .loading-spinner {
+        width: 50px;
+        height: 50px;
+    }
+
+    .button-container {
+        flex-direction: column;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .loading-button {
+        width: 150px;
+        text-align: center;
+    }
+}

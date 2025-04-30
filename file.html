@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no" />
+    <title>文件内容</title>
+    <link href="css/w3.css" rel="stylesheet" />
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #d32f2fe5;
+            font-family: "Segoe UI", Arial, sans-serif;
+            color: #333;
+            padding-bottom: 60px; /* 为底部托盘留出空间 */
+            user-select: none;          /* 标准语法 */
+            -webkit-user-select: none;  /* Safari/Chrome 等 WebKit 内核浏览器 */
+            -moz-user-select: none;     /* Firefox */
+            -ms-user-select: none;      /* Internet Explorer/Edge */
+        }
+
+        /* 页面分隔线样式 */
+        .page-divider {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(to right, transparent, #9c2424, transparent);
+            z-index: 100;
+            margin: 0 15px;
+            transition: all 0.3s ease;
+        }
+
+        .header {
+	        display: flex;
+	        align-items: center;
+	        justify-content: center;
+	        background-color: #9c2424;
+	        height: 50px;
+	        position: fixed;
+	        top: 0;
+	        left: 0;
+	        right: 0;
+	        width: 100%;
+	        z-index: 1000;
+	        color: white;
+	    }
+
+        .back-button {
+            position: absolute;
+            left: 20px;
+            background-color: #ff8800e8;
+            border: none;
+            border-radius: 5px;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 0px 10px;
+            box-shadow: 0 3px 5px rgba(0, 0, 0, 0.3),
+                       0 3px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        .back-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 3px 5px rgba(0, 0, 0, 0.3),
+                       0 3px 5px rgba(0, 0, 0, 0.2);
+        }
+        .header-title {
+            font-size: 28px;
+            font-weight: normal;
+            margin: 0;
+        }
+
+        .current-time {
+	        position: absolute;
+	        right: 10px;
+	        font-size: 24px;
+	        color: white;
+	    }
+
+        .content-container {
+            margin-top: 60px;
+            padding: 15px;
+        }
+
+        .file-content {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            position: relative; /* 确保容器有相对定位，这样分隔线才能正确定位 */
+        }
+
+        /* macOS风格的功能托盘 */
+        .dock-container {
+            position: fixed;
+            bottom: 20px;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.0);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .dock {
+            display: flex;
+            height: 50px;
+            padding: 0 20px;
+            border-radius: 20px;
+            background: linear-gradient(to bottom, #d32f2f, #9c2424);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3),
+                      inset 0 2px 3px rgba(255, 255, 255, 0.2),
+                      0 -3px 6px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        /* 页面选择器样式 */
+        .page-selector {
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+        }
+
+        .page-selector label {
+            margin-right: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            color: #ffffff;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+        }
+
+        .page-selector select {
+            background-color: rgba(255, 255, 255, 0.15);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            padding: 6px 12px;
+            font-size: 15px;
+            color: #ffffff;
+            outline: none;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            min-width: 40px;
+        }
+
+        .page-selector select:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+
+        .page-selector select:focus {
+            background-color: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.6);
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1);
+        }
+
+        /* 页面信息样式 */
+        .page-info {
+            display: flex;
+            align-items: center;
+            margin-left: 15px;
+            font-size: 16px;
+            color: #ffffff;
+            font-weight: 500;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+        }
+
+        .page-info span {
+            margin: 0 5px;
+        }
+
+        /* 悬停和焦点状态 */
+        .page-selector select:hover {
+            background-color: rgba(255, 255, 255, 0.25);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+
+        .page-selector select:focus {
+            background-color: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.6);
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body oncontextmenu="return false">
+    <div class="header w3-card">
+        <button id="backButton" class="back-button">返回</button>
+        <h1 class="header-title"></h1>
+        <div id="current-time" class="current-time"></div>
+    </div>
+
+    <div class="content-container">
+        <div id="fileContent" class="file-content">
+            加载中...
+        </div>
+    </div>
+
+    <!-- macOS风格的功能托盘 -->
+    <div class="dock-container">
+        <div class="dock">
+            <div class="page-selector">
+                <label for="pageSelect">页码:</label>
+                <select id="pageSelect">
+                    <!-- 页码选项将由JavaScript动态生成 -->
+                </select>
+            </div>
+            <div class="page-info">
+                <span id="currentPage" style="display:none">1</span> 共 <span id="totalPages">1</span>页
+            </div>
+        </div>
+    </div>
+
+    <script src="js/page-manager.js"></script>
+    <script src="js/file.js"></script>
+</body>
+</html>

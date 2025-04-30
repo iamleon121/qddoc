@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>ZIP文件解压示例</title>
+    <style>
+        body { max-width: 800px; margin: 20px auto; padding: 20px; }
+        #fileList { margin-top: 20px; border: 1px solid #ccc; padding: 10px; }
+        .file-item { margin: 5px 0; padding: 5px; border-bottom: 1px solid #eee; }
+        img.preview { max-width: 300px; margin-top: 10px; display: block; }
+        .error { color: red; }
+        .success { color: green; }
+        .input-group { margin: 15px 0; }
+        input[type="text"] { width: 70%; padding: 8px; }
+        button { padding: 8px 15px; cursor: pointer; background-color: #4CAF50; color: white; border: none; }
+        button:hover { background-color: #45a049; }
+        .progress-container { margin-top: 10px; width: 100%; background-color: #f1f1f1; }
+        .progress-bar { height: 20px; background-color: #4CAF50; width: 0%; }
+    </style>
+</head>
+<body>
+    <h1>ZIP文件解压演示</h1>
+    <div class="input-group">
+        <input type="text" id="zipUrl" placeholder="输入ZIP文件URL，例如：https://example.com/file.zip" />
+        <button id="downloadBtn">下载并解压</button>
+    </div>
+    
+    <div class="input-group">
+        <p>或者从本地上传：</p>
+        <input type="file" id="zipFile" accept=".zip" />
+    </div>
+    
+    <div id="status"></div>
+    <div class="progress-container" id="progressContainer" style="display: none;">
+        <div class="progress-bar" id="progressBar"></div>
+    </div>
+    <div id="fileList"></div>
+    
+    <hr style="margin: 30px 0;">
+    <h2>应用内文档浏览</h2>
+    <div class="input-group">
+        <button id="browseDocBtn">浏览应用内doc文件夹</button>
+    </div>
+    <div id="docStatus" class="status"></div>
+    <div id="docFileList" style="margin-top: 20px; border: 1px solid #ccc; padding: 10px;"></div>
+    <div id="filePreview" style="margin-top: 20px; display: none;">
+        <h3 id="previewTitle"></h3>
+        <div id="previewContent"></div>
+        <button id="closePreviewBtn" style="margin-top: 10px;">关闭预览</button>
+    </div>
+
+    <script>
+    if(window.plus) {
+        plusReady();
+    } else {
+        document.addEventListener("plusready", plusReady, false);
+    }
+
+    function plusReady() {
+        // 检查并创建zipin文件夹
+        plus.io.resolveLocalFileSystemURL('_doc/zipin/', (entry) => {
+            console.log('zipin文件夹已存在');
+            // 读取文件夹内容
+            const directoryReader = entry.createReader();
+            directoryReader.readEntries((entries) => {
+                console.log(`zipin文件夹中有 ${entries.length} 个文件/文件夹`);
+            }, (error) => {
+                console.error('读取zipin文件夹失败:', error);
+            });
+        }, (error) => {
+            // 文件夹不存在，创建它
+            plus.io.resolveLocalFileSystemURL('_doc/', (root) => {
+                root.getDirectory('zipin', { create: true }, (dirEntry) => {
+                    console.log('zipin文件夹创建成功');
+                }, (error) => {
+                    console.error('创建zipin文件夹失败:', error);
+                });
+            }, (error) => {
+                console.error('访问_doc目录失败:', error);
+            });
+        });
+
+        // 检查并创建huiyi文件夹
+        plus.io.resolveLocalFileSystemURL('_doc/huiyi/', (entry) => {
+            console.log('huiyi文件夹已存在');
+            // 读取文件夹内容
+            const directoryReader = entry.createReader();
+            directoryReader.readEntries((entries) => {
+                console.log(`huiyi文件夹中有 ${entries.length} 个文件/文件夹`);
+            }, (error) => {
+                console.error('读取huiyi文件夹失败:', error);
+            });
+        }, (error) => {
+            // 文件夹不存在，创建它
+            plus.io.resolveLocalFileSystemURL('_doc/', (root) => {
+                root.getDirectory('huiyi', { create: true }, (dirEntry) => {
+                    console.log('huiyi文件夹创建成功');
+                }, (error) => {
+                    console.error('创建huiyi文件夹失败:', error);
+                });
+            }, (error) => {
+                console.error('访问_doc目录失败:', error);
+            });
+        });
+
+        const zipFileInput = document.getElementById('zipFile');
+        const zipUrlInput = document.getElementById('zipUrl');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const fileListDiv = document.getElementById('fileList');
+        const statusDiv = document.getElementById('status');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressBar = document.getElementById('progressBar');
+
+        // 设置默认URL
+        const defaultZipUrl = 'http://123.56.40.178/data.zip';
+        zipUrlInput.value = defaultZipUrl;
+
+        // 网络下载ZIP文件功能
+        downloadBtn.addEventListener('click', async () => {
+            const url = zipUrlInput.value.trim() || defaultZipUrl;
+            if (!url) {
+                statusDiv.textContent = '请输入有效的ZIP文件URL';
+                statusDiv.className = 'error';
+                return;
+            }
+
+            statusDiv.textContent = '正在下载...';
+            statusDiv.className = '';
+            fileListDiv.innerHTML = '';
+            progressContainer.style.display = 'block';
+            progressBar.style.width = '0%';
+
+            try {
+                // 从URL中获取文件名
+                const fileName = url.split('/').pop() || 'data.zip';
+                const targetPath = '_doc/zipin/' + fileName;
+                
+                // 先检查是否存在同名文件
+                plus.io.resolveLocalFileSystemURL(targetPath, (entry) => {
+                    // 如果文件存在，先删除它
+                    entry.remove(() => {
+                        console.log(`已删除旧的${fileName}文件`);
+                        startDownload(targetPath);
+                    }, (error) => {
+                        console.error('删除旧文件失败:', error);
+                        startDownload(targetPath);
+                    });
+                }, (error) => {
+                    // 文件不存在，直接开始下载
+                    startDownload(targetPath);
+                });
+
+                function startDownload(targetPath) {
+                    const dtask = plus.downloader.createDownload(url, {
+                        filename: targetPath
+                    }, function(d, status) {
+                        console.log('下载完成状态:', status, '下载任务信息:', d);
+                        // 检查下载状态，HTTP状态码2xx表示成功
+                        if (status >= 200 && status < 300) {
+                            statusDiv.textContent = '下载完成，正在解压...';
+                            statusDiv.className = '';
+                            // 自动解压到huiyi文件夹
+                            plus.zip.decompress(targetPath, '_doc/huiyi/', (success) => {
+                                statusDiv.textContent = '解压完成';
+                                statusDiv.className = 'success';
+                                progressContainer.style.display = 'none';
+                            }, (error) => {
+                                console.error('解压失败:', error);
+                                statusDiv.textContent = `解压失败: ${error.message}`;
+                                statusDiv.className = 'error';
+                                progressContainer.style.display = 'none';
+                            });
+                        } else if (status === 404) {
+                            console.error('文件不存在，状态码:', status);
+                            statusDiv.textContent = '下载失败: 文件不存在';
+                            statusDiv.className = 'error';
+                            progressContainer.style.display = 'none';
+                        } else {
+                            console.error('下载失败，状态码:', status);
+                            statusDiv.textContent = '下载失败: 网络错误';
+                            statusDiv.className = 'error';
+                            progressContainer.style.display = 'none';
+                        }
+                    });
+                
+                    dtask.addEventListener("statechanged", function(task, status) {
+                        switch(task.state) {
+                            case 1: // 开始
+                                console.log("开始下载");
+                                break;
+                            case 2: // 已连接到服务器
+                                console.log("已连接到服务器");
+                                break;
+                            case 3: // 下载中
+                                if (task.totalSize > 0) {
+                                    const progress = (task.downloadedSize / task.totalSize) * 100;
+                                    progressBar.style.width = `${Math.round(progress)}%`;
+                                    statusDiv.textContent = `下载进度: ${Math.round(progress)}%`;
+                                }
+                                break;
+                            case 4: // 下载失败
+                                console.error("下载失败，错误信息:", task.filename, task.downloadedSize, task.totalSize);
+                                statusDiv.textContent = `下载失败: ${task.state}`;
+                                statusDiv.className = 'error';
+                                progressContainer.style.display = 'none';
+                                break;
+                        }
+                    });
+                
+                    dtask.start();
+                }
+            } catch (err) {
+                statusDiv.textContent = `下载失败: ${err.message}`;
+                statusDiv.className = 'error';
+                progressContainer.style.display = 'none';
+            }
+        });
+
+        // 本地文件处理
+        zipFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const MAX_SIZE = 100 * 1024 * 1024;
+            if (file.size > MAX_SIZE) {
+                statusDiv.textContent = '文件过大，请选择100MB以下的ZIP文件';
+                statusDiv.className = 'error';
+                return;
+            }
+
+            statusDiv.textContent = '准备解压...';
+            statusDiv.className = '';
+            fileListDiv.innerHTML = '';
+            
+            // 获取本地文件路径
+            const fileURL = plus.io.convertLocalFileSystemURL(file.path);
+            decompressFile(fileURL);
+        });
+
+        // 解压文件
+        function decompressFile(zipPath) {
+            const targetPath = '_doc/unzip/';
+            
+            plus.zip.decompress(zipPath, targetPath, (success) => {
+                statusDiv.textContent = '解压完成';
+                statusDiv.className = 'success';
+                progressContainer.style.display = 'none';
+                
+                // 列出解压后的文件
+                plus.io.resolveLocalFileSystemURL(targetPath, (entry) => {
+                    const directoryReader = entry.createReader();
+                    directoryReader.readEntries((entries) => {
+                        entries.forEach((fileEntry) => {
+                            if (!fileEntry.isDirectory) {
+                                const fileItem = document.createElement('div');
+                                fileItem.className = 'file-item';
+                                
+                                fileItem.innerHTML = `
+                                    <div><strong>文件名：</strong>${fileEntry.name}</div>
+                                `;
+
+                                // 处理图片预览
+                                if (/\.(png|jpe?g|gif|webp)$/i.test(fileEntry.name)) {
+                                    const img = document.createElement('img');
+                                    img.className = 'preview';
+                                    img.src = fileEntry.toLocalURL();
+                                    fileItem.appendChild(img);
+                                }
+
+                                // 处理文本文件
+                                if (/\.(txt|html?|css|js|json|xml)$/i.test(fileEntry.name)) {
+                                    fileEntry.file((file) => {
+                                        const reader = new plus.io.FileReader();
+                                        reader.onloadend = function(evt) {
+                                            const pre = document.createElement('pre');
+                                            pre.textContent = evt.target.result;
+                                            fileItem.appendChild(pre);
+                                        };
+                                        reader.readAsText(file);
+                                    });
+                                }
+
+                                fileListDiv.appendChild(fileItem);
+                            }
+                        });
+                    });
+                });
+            }, (error) => {
+                statusDiv.textContent = `解压失败: ${error.message}`;
+                statusDiv.className = 'error';
+                progressContainer.style.display = 'none';
+            });
+        }
+        
+        // 应用内文档浏览功能
+        const browseDocBtn = document.getElementById('browseDocBtn');
+        const docStatusDiv = document.getElementById('docStatus');
+        const docFileListDiv = document.getElementById('docFileList');
+        const filePreviewDiv = document.getElementById('filePreview');
+        const previewTitleDiv = document.getElementById('previewTitle');
+        const previewContentDiv = document.getElementById('previewContent');
+        const closePreviewBtn = document.getElementById('closePreviewBtn');
+        
+        // 当前浏览的路径
+        let currentPath = '_doc/';
+        let pathHistory = [];
+        
+        // 浏览文档按钮点击事件
+        browseDocBtn.addEventListener('click', () => {
+            browseDocFolder(currentPath);
+        });
+        
+        // 关闭预览按钮点击事件
+        closePreviewBtn.addEventListener('click', () => {
+            filePreviewDiv.style.display = 'none';
+        });
+        
+        // 浏览文档文件夹
+        function browseDocFolder(path) {
+            docStatusDiv.textContent = '正在加载文件...';
+            docStatusDiv.className = '';
+            docFileListDiv.innerHTML = '';
+            
+            // 添加返回上级目录按钮（如果不是根目录）
+            if (pathHistory.length > 0) {
+                const backBtn = document.createElement('button');
+                backBtn.textContent = '返回上级目录';
+                backBtn.style.marginBottom = '10px';
+                backBtn.addEventListener('click', () => {
+                    currentPath = pathHistory.pop();
+                    browseDocFolder(currentPath);
+                });
+                docFileListDiv.appendChild(backBtn);
+                docFileListDiv.appendChild(document.createElement('hr'));
+            }
+            
+            // 显示当前路径
+            const pathDiv = document.createElement('div');
+            pathDiv.innerHTML = `<strong>当前路径：</strong>${path}`;
+            pathDiv.style.marginBottom = '10px';
+            docFileListDiv.appendChild(pathDiv);
+            
+            try {
+                plus.io.resolveLocalFileSystemURL(path, (entry) => {
+                    const directoryReader = entry.createReader();
+                    directoryReader.readEntries((entries) => {
+                        if (entries.length === 0) {
+                            docStatusDiv.textContent = '文件夹为空';
+                            return;
+                        }
+                        
+                        docStatusDiv.textContent = `找到 ${entries.length} 个文件/文件夹`;
+                        docStatusDiv.className = 'success';
+                        
+                        // 先显示文件夹，再显示文件
+                        const folders = [];
+                        const files = [];
+                        
+                        entries.forEach((entry) => {
+                            if (entry.isDirectory) {
+                                folders.push(entry);
+                            } else {
+                                files.push(entry);
+                            }
+                        });
+                        
+                        // 显示文件夹
+                        folders.forEach((folderEntry) => {
+                            const folderItem = document.createElement('div');
+                            folderItem.className = 'file-item';
+                            folderItem.style.backgroundColor = '#f5f5f5';
+                            folderItem.style.cursor = 'pointer';
+                            
+                            folderItem.innerHTML = `
+                                <div><strong>📁 文件夹：</strong>${folderEntry.name}</div>
+                            `;
+                            
+                            folderItem.addEventListener('click', () => {
+                                pathHistory.push(currentPath);
+                                currentPath = folderEntry.fullPath;
+                                browseDocFolder(currentPath);
+                            });
+                            
+                            docFileListDiv.appendChild(folderItem);
+                        });
+                        
+                        // 显示文件
+                        files.forEach((fileEntry) => {
+                            const fileItem = document.createElement('div');
+                            fileItem.className = 'file-item';
+                            
+                            // 根据文件类型显示不同图标
+                            let fileIcon = '📄';
+                            if (/\.(png|jpe?g|gif|webp)$/i.test(fileEntry.name)) {
+                                fileIcon = '🖼️';
+                            } else if (/\.(txt|md)$/i.test(fileEntry.name)) {
+                                fileIcon = '📝';
+                            } else if (/\.(html?|xml)$/i.test(fileEntry.name)) {
+                                fileIcon = '🌐';
+                            } else if (/\.(pdf)$/i.test(fileEntry.name)) {
+                                fileIcon = '📑';
+                            } else if (/\.(doc|docx)$/i.test(fileEntry.name)) {
+                                fileIcon = '📘';
+                            } else if (/\.(xls|xlsx)$/i.test(fileEntry.name)) {
+                                fileIcon = '📊';
+                            } else if (/\.(ppt|pptx)$/i.test(fileEntry.name)) {
+                                fileIcon = '📽️';
+                            } else if (/\.(zip|rar|7z)$/i.test(fileEntry.name)) {
+                                fileIcon = '🗜️';
+                            } else if (/\.(mp3|wav|ogg)$/i.test(fileEntry.name)) {
+                                fileIcon = '🎵';
+                            } else if (/\.(mp4|avi|mov)$/i.test(fileEntry.name)) {
+                                fileIcon = '🎬';
+                            }
+                            
+                            fileItem.innerHTML = `
+                                <div><strong>${fileIcon} 文件：</strong>${fileEntry.name}</div>
+                            `;
+                            
+                            // 添加预览按钮
+                            const previewBtn = document.createElement('button');
+                            previewBtn.textContent = '预览';
+                            previewBtn.style.marginTop = '5px';
+                            previewBtn.addEventListener('click', () => {
+                                previewFile(fileEntry);
+                            });
+                            fileItem.appendChild(previewBtn);
+                            
+                            docFileListDiv.appendChild(fileItem);
+                        });
+                    }, (error) => {
+                        docStatusDiv.textContent = `读取文件夹失败: ${error.message}`;
+                        docStatusDiv.className = 'error';
+                    });
+                }, (error) => {
+                    docStatusDiv.textContent = `找不到文件夹: ${error.message}`;
+                    docStatusDiv.className = 'error';
+                });
+            } catch (err) {
+                docStatusDiv.textContent = `访问文件夹出错: ${err.message}`;
+                docStatusDiv.className = 'error';
+            }
+        }
+        
+        // 预览文件
+        function previewFile(fileEntry) {
+            previewTitleDiv.textContent = fileEntry.name;
+            previewContentDiv.innerHTML = '';
+            filePreviewDiv.style.display = 'block';
+            
+            // 根据文件类型进行不同的预览处理
+            if (/\.(png|jpe?g|gif|webp)$/i.test(fileEntry.name)) {
+                // 图片预览
+                const img = document.createElement('img');
+                img.className = 'preview';
+                img.src = fileEntry.toLocalURL();
+                previewContentDiv.appendChild(img);
+            } else if (/\.(txt|html?|css|js|json|xml|md)$/i.test(fileEntry.name)) {
+                // 文本文件预览
+                fileEntry.file((file) => {
+                    const reader = new plus.io.FileReader();
+                    reader.onloadend = function(evt) {
+                        const pre = document.createElement('pre');
+                        pre.style.whiteSpace = 'pre-wrap';
+                        pre.style.wordBreak = 'break-all';
+                        pre.textContent = evt.target.result;
+                        previewContentDiv.appendChild(pre);
+                    };
+                    reader.readAsText(file);
+                });
+            } else if (/\.(pdf)$/i.test(fileEntry.name)) {
+                // PDF预览（使用iframe）
+                const iframe = document.createElement('iframe');
+                iframe.style.width = '100%';
+                iframe.style.height = '500px';
+                iframe.src = fileEntry.toLocalURL();
+                previewContentDiv.appendChild(iframe);
+            } else if (/\.(mp3|wav|ogg)$/i.test(fileEntry.name)) {
+                // 音频预览
+                const audio = document.createElement('audio');
+                audio.controls = true;
+                audio.style.width = '100%';
+                audio.src = fileEntry.toLocalURL();
+                previewContentDiv.appendChild(audio);
+            } else if (/\.(mp4|webm)$/i.test(fileEntry.name)) {
+                // 视频预览
+                const video = document.createElement('video');
+                video.controls = true;
+                video.style.width = '100%';
+                video.style.maxHeight = '400px';
+                video.src = fileEntry.toLocalURL();
+                previewContentDiv.appendChild(video);
+            } else {
+                // 其他文件类型
+                previewContentDiv.textContent = '无法预览此类型的文件';
+                
+                // 添加打开按钮
+                const openBtn = document.createElement('button');
+                openBtn.textContent = '尝试打开文件';
+                openBtn.style.marginTop = '10px';
+                openBtn.addEventListener('click', () => {
+                    plus.runtime.openFile(fileEntry.toLocalURL(), {}, function(e) {
+                        previewContentDiv.innerHTML += '<p class="error">打开文件失败</p>';
+                    });
+                });
+                previewContentDiv.appendChild(openBtn);
+            }
+        }
+    }
+    </script>
+</body>
+</html>
