@@ -23,6 +23,12 @@ const LoadingService = {
     maxRetryCount: 3, // 最大重试次数
     retryCount: 0, // 当前重试次数
 
+    // 延时下载相关变量
+    delayTimeoutId: null, // 延时定时器ID
+    delaySeconds: 0, // 当前选择的延时秒数
+    isDelaying: false, // 是否正在延时中
+    delayTimeNodes: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120], // 可能的延时节点（秒）
+
     // 事件监听器集合
     eventListeners: {},
 
@@ -436,23 +442,24 @@ const LoadingService = {
                                 agenda_items_count: jsonData.agenda_items ? jsonData.agenda_items.length : 0
                             });
 
-                            // 更新数据
+                            // 暂存数据，但不立即保存到本地存储
                             this.meetingData = jsonData;
-
-                            // 保存到本地存储
                             const jsonString = JSON.stringify(jsonData);
-                            console.log('更新本地存储的数据内容');
-                            plus.storage.setItem('meetingData', jsonString);
 
-                            // 触发数据初始化事件
+                            console.log('会议数据包解析成功，准备下载文件');
+
+                            // 触发数据初始化事件，但不更新本地存储
                             this.triggerEvent('dataInit', jsonData);
-
-                            console.log('会议数据包解析成功');
 
                             // 下载并解压会议ZIP压缩包
                             this.downloadAndExtractMeetingPackage(meetingId)
                                 .then(() => {
                                     console.log('会议ZIP压缩包下载并解压成功');
+
+                                    // 下载成功后，才保存会议数据到本地存储
+                                    console.log('下载成功，更新本地存储的数据内容');
+                                    plus.storage.setItem('meetingData', jsonString);
+
                                     // 触发数据获取完成事件
                                     this.triggerEvent('dataFetchComplete', jsonData);
                                     this.isDataFetching = false;
@@ -460,10 +467,30 @@ const LoadingService = {
                                 })
                                 .catch(error => {
                                     console.error('会议ZIP压缩包下载或解压失败:', error);
-                                    // 即使ZIP包处理失败，也继续完成数据获取流程
-                                    this.triggerEvent('dataFetchComplete', jsonData);
+
+                                    // 下载失败，不更新本地存储
+                                    console.log('下载失败，不更新本地存储的数据内容');
+
+                                    // 触发下载失败事件
+                                    this.triggerEvent('downloadFailed', {
+                                        meetingId: meetingId,
+                                        error: error.message || String(error)
+                                    });
+
                                     this.isDataFetching = false;
-                                    resolve(jsonData);
+
+                                    // 尝试从本地存储中恢复旧的会议数据
+                                    try {
+                                        const oldMeetingData = plus.storage.getItem('meetingData');
+                                        if (oldMeetingData) {
+                                            console.log('从本地存储中恢复旧的会议数据');
+                                            this.meetingData = JSON.parse(oldMeetingData);
+                                        }
+                                    } catch (storageError) {
+                                        console.error('恢复旧的会议数据失败:', storageError);
+                                    }
+
+                                    reject(new Error('会议文件下载失败，无法更新会议数据'));
                                 });
                         } catch (error) {
                             console.error('JSON解析错误:', error);
@@ -504,6 +531,94 @@ const LoadingService = {
                 reject(error);
             }
         });
+    },
+
+    // 生成随机延时时间
+    generateRandomDelay: function() {
+        // 第一重随机：前一分钟(0-60秒)被选中的概率是75%，后一分钟(70-120秒)被选中的概率是25%
+        const firstMinuteProbability = 0.75;
+        const isFirstMinute = Math.random() < firstMinuteProbability;
+
+        // 根据第一重随机结果，确定可能的延时节点范围
+        const possibleNodes = isFirstMinute
+            ? this.delayTimeNodes.filter(node => node <= 60)
+            : this.delayTimeNodes.filter(node => node > 60);
+
+        // 第二重随机：在确定的分钟内，随机选择具体的延时节点
+        const randomIndex = Math.floor(Math.random() * possibleNodes.length);
+        const selectedDelay = possibleNodes[randomIndex];
+
+        console.log(`随机延时生成：${isFirstMinute ? '前一分钟' : '后一分钟'}被选中，具体延时为${selectedDelay}秒`);
+        return selectedDelay;
+    },
+
+    // 执行延时等待
+    performDelayedDownload: function(meetingId, resolve, reject) {
+        // 生成随机延时时间
+        this.delaySeconds = this.generateRandomDelay();
+
+        if (this.delaySeconds === 0) {
+            console.log('无需延时，直接开始下载');
+            this.startDownloadProcess(meetingId, resolve, reject);
+            return;
+        }
+
+        console.log(`开始延时下载，等待${this.delaySeconds}秒后开始`);
+        this.isDelaying = true;
+
+        // 触发延时开始事件
+        this.triggerEvent('delayStart', {
+            meetingId: meetingId,
+            delaySeconds: this.delaySeconds
+        });
+
+        // 设置倒计时更新的间隔（每秒）
+        let remainingSeconds = this.delaySeconds;
+
+        // 创建定时器，每秒更新一次倒计时
+        const countdownInterval = setInterval(() => {
+            remainingSeconds--;
+
+            // 触发倒计时更新事件
+            this.triggerEvent('delayCountdown', {
+                meetingId: meetingId,
+                remainingSeconds: remainingSeconds,
+                totalSeconds: this.delaySeconds
+            });
+
+            // 检查是否已取消
+            if (this.isCancelled) {
+                console.log('延时过程被取消');
+                clearInterval(countdownInterval);
+                if (this.delayTimeoutId) {
+                    clearTimeout(this.delayTimeoutId);
+                    this.delayTimeoutId = null;
+                }
+                this.isDelaying = false;
+                reject(new Error('操作已取消'));
+                return;
+            }
+
+            // 倒计时结束
+            if (remainingSeconds <= 0) {
+                clearInterval(countdownInterval);
+            }
+        }, 1000);
+
+        // 设置延时结束后的操作
+        this.delayTimeoutId = setTimeout(() => {
+            clearInterval(countdownInterval);
+            this.isDelaying = false;
+            this.delayTimeoutId = null;
+
+            // 触发延时结束事件
+            this.triggerEvent('delayEnd', {
+                meetingId: meetingId
+            });
+
+            // 开始实际的下载过程
+            this.startDownloadProcess(meetingId, resolve, reject);
+        }, this.delaySeconds * 1000);
     },
 
     // 下载并解压会议ZIP压缩包
@@ -551,8 +666,8 @@ const LoadingService = {
                 // 确保下载文件夹存在
                 await this.ensureDirectoryExists('_doc/download/');
 
-                // 开始下载过程
-                await this.startDownloadProcess(meetingId, resolve, reject);
+                // 执行随机延时下载
+                await this.performDelayedDownload(meetingId, resolve, reject);
             } catch (error) {
                 console.error('下载准备过程出错:', error);
                 this.triggerEvent('downloadError', {
@@ -560,8 +675,8 @@ const LoadingService = {
                     error: error.message || String(error)
                 });
 
-                // 即使出错也算成功，不中断整体流程
-                resolve();
+                // 下载准备过程出错应该视为失败，拒绝Promise
+                reject(error);
             }
         });
     },
@@ -671,8 +786,8 @@ const LoadingService = {
                         message: `所有节点下载尝试均失败，共尝试了 ${this.retryCount + 1} 次`
                     });
 
-                    // 即使下载失败也算成功，不中断整体流程
-                    resolve();
+                    // 下载失败应该视为失败，拒绝Promise
+                    reject(new Error('下载失败，所有节点尝试均失败'));
                 }
             }
         });
@@ -683,6 +798,13 @@ const LoadingService = {
             if (this.isCancelled) {
                 console.log('下载已取消，中止下载任务');
                 dtask.abort();
+
+                // 触发下载取消事件
+                this.triggerEvent('downloadCancelled', {
+                    meetingId: meetingId,
+                    message: '下载已取消'
+                });
+
                 reject(new Error('下载已取消'));
                 return;
             }
@@ -748,6 +870,13 @@ const LoadingService = {
                         // 检查是否已取消
                         if (this.isCancelled) {
                             console.log('操作已取消，不执行解压');
+
+                            // 触发解压取消事件
+                            this.triggerEvent('extractCancelled', {
+                                meetingId: meetingId,
+                                message: '解压操作已取消'
+                            });
+
                             reject(new Error('操作已取消'));
                             return;
                         }
@@ -762,6 +891,13 @@ const LoadingService = {
                             // 检查是否已取消
                             if (this.isCancelled) {
                                 console.log('操作已取消，不继续处理解压结果');
+
+                                // 触发解压取消事件
+                                this.triggerEvent('extractCancelled', {
+                                    meetingId: meetingId,
+                                    message: '解压结果处理已取消'
+                                });
+
                                 reject(new Error('操作已取消'));
                                 return;
                             }
@@ -776,18 +912,18 @@ const LoadingService = {
                                 this.handleDecompressionSuccess(zipPath, extractPath, resolve);
                             } else {
                                 console.error('解压失败, 状态码:', status);
-                                // 即使解压失败也算成功，不中断整体流程
-                                resolve();
+                                // 解压失败应该视为失败，拒绝Promise
+                                reject(new Error('解压失败，状态码: ' + status));
                             }
                         }, error => {
                             console.error('解压出错:', error);
-                            // 即使解压出错也算成功，不中断整体流程
-                            resolve();
+                            // 解压出错应该视为失败，拒绝Promise
+                            reject(new Error('解压出错: ' + (error.message || String(error))));
                         });
                     } catch (error) {
                         console.error('解压过程中发生异常:', error);
-                        // 即使发生异常也算成功，不中断整体流程
-                        resolve();
+                        // 解压过程中发生异常应该视为失败，拒绝Promise
+                        reject(new Error('解压过程中发生异常: ' + (error.message || String(error))));
                     }
                 })
                 .catch(error => {
@@ -1004,6 +1140,8 @@ const LoadingService = {
         // 保存当前会议文件夹路径到本地存储
         plus.storage.setItem('currentMeetingFolder', extractPath);
 
+        // 注释掉删除ZIP文件的代码，保留ZIP文件用于调试
+        /*
         // 删除下载的ZIP文件
         plus.io.resolveLocalFileSystemURL(zipPath, entry => {
             entry.remove(() => {
@@ -1019,6 +1157,11 @@ const LoadingService = {
             // 即使解析失败也算成功
             resolve();
         });
+        */
+
+        // 直接完成操作，不删除ZIP文件
+        console.log('保留ZIP文件用于调试:', zipPath);
+        resolve(); // 成功完成所有操作
     },
 
     // 清空所有会议文件夹
@@ -1156,6 +1299,25 @@ const LoadingService = {
         // 设置取消标志
         this.isCancelled = true;
 
+        // 取消延时等待
+        if (this.isDelaying && this.delayTimeoutId) {
+            try {
+                console.log('取消延时等待');
+                clearTimeout(this.delayTimeoutId);
+                this.delayTimeoutId = null;
+                this.isDelaying = false;
+                console.log('延时等待已取消');
+
+                // 触发延时取消事件
+                this.triggerEvent('delayCancelled', {
+                    message: '延时等待已取消',
+                    delaySeconds: this.delaySeconds
+                });
+            } catch (error) {
+                console.error('取消延时等待失败:', error);
+            }
+        }
+
         // 取消下载任务
         if (this.downloadTask) {
             try {
@@ -1169,7 +1331,16 @@ const LoadingService = {
         }
 
         // 触发取消事件
-        this.triggerEvent('operationCancelled', { message: '操作已取消' });
+        this.triggerEvent('operationCancelled', {
+            message: '操作已取消',
+            cancelledAt: new Date().toISOString()
+        });
+
+        // 触发下载失败事件，确保UI能够正确处理
+        this.triggerEvent('downloadFailed', {
+            error: '用户取消了操作',
+            message: '用户取消了操作，下载未完成'
+        });
 
         // 返回主页面
         setTimeout(function() {

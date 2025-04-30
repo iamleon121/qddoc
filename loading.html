@@ -12,13 +12,13 @@
     <script src="js/loading.js"></script>
 </head>
 <body oncontextmenu="return false">
-    <div class="logo">
+    <!--<div class="logo">
         <img src="img/huiyi-logo.png" alt="会议系统Logo">
         <span class="logo-text"></span>
-    </div>
+    </div>-->
 
     <div class="loading-container">
-        <div class="loading-title">无纸化会议系统</div>
+        <div class="loading-title">无纸化会议数据更新</div>
 
         <!-- 会议选择模态框 -->
         <div id="meeting-selection-modal" class="meeting-selection-modal" style="display: none;">
@@ -38,6 +38,12 @@
                 <div class="progress-bar" id="loadingProgress"></div>
             </div>
             <div class="loading-text pulse">正在初始化系统...</div>
+            <!-- 延时倒计时显示 -->
+            <div class="delay-countdown" style="display: none;">
+                <div class="countdown-timer">
+                    <span id="countdown-minutes">00</span>:<span id="countdown-seconds">00</span>
+                </div>
+            </div>
             <div class="download-info" style="display: none;">
                 <div class="node-info">下载节点: <span id="current-node">-</span></div>
                 <div class="download-size">已下载: <span id="downloaded-size">0</span> / <span id="total-size">0</span></div>

@@ -576,6 +576,53 @@ function fetchMeetingById(meetingId) {
     LoadingService.addEventListener('idChanged', dataUpdateHandler);
     LoadingService.addEventListener('error', errorHandler);
 
+    // 添加延时事件监听器
+    LoadingService.addEventListener('delayStart', function(data) {
+        console.log('开始延时等待:', data.delaySeconds + '秒');
+        updateLoadingText('为避免服务器拥堵，正在等待开始下载...');
+        stopProgressAnimation();
+        setProgress(30);
+
+        // 显示延时倒计时区域
+        const delayCountdown = document.querySelector('.delay-countdown');
+        if (delayCountdown) {
+            delayCountdown.style.display = 'block';
+        }
+
+        // 设置倒计时初始值
+        updateCountdown(data.delaySeconds, data.delaySeconds);
+    });
+
+    LoadingService.addEventListener('delayCountdown', function(data) {
+        // 更新倒计时显示
+        updateCountdown(data.remainingSeconds, data.totalSeconds);
+
+        // 更新主进度条
+        const progressPercent = 30 + (20 * (1 - data.remainingSeconds / data.totalSeconds));
+        setProgress(progressPercent);
+    });
+
+    LoadingService.addEventListener('delayEnd', function(data) {
+        console.log('延时等待结束');
+        updateLoadingText('延时等待结束，开始下载...');
+
+        // 隐藏延时倒计时区域
+        const delayCountdown = document.querySelector('.delay-countdown');
+        if (delayCountdown) {
+            delayCountdown.style.display = 'none';
+        }
+    });
+
+    LoadingService.addEventListener('delayCancelled', function(data) {
+        console.log('延时等待已取消');
+
+        // 隐藏延时倒计时区域
+        const delayCountdown = document.querySelector('.delay-countdown');
+        if (delayCountdown) {
+            delayCountdown.style.display = 'none';
+        }
+    });
+
     // 添加下载和解压进度事件监听器
     LoadingService.addEventListener('downloadStart', function(data) {
         console.log('开始下载会议ZIP包:', data.meetingId);
@@ -654,18 +701,57 @@ function fetchMeetingById(meetingId) {
 
     LoadingService.addEventListener('downloadError', function(data) {
         console.error('下载失败:', data);
-        updateLoadingText('下载文件失败，继续处理...');
-        // 不中断整体流程，继续处理
+        updateLoadingText('下载文件失败...');
         stopProgressAnimation();
-        setProgress(70);
+        setProgress(30);
 
-        // 如果是最终失败（所有节点都尝试过），隐藏下载信息区域
-        if (data.message && data.message.includes('所有节点下载尝试均失败')) {
-            const downloadInfo = document.querySelector('.download-info');
-            if (downloadInfo) {
-                downloadInfo.style.display = 'none';
-            }
+        // 显示错误消息
+        showError('下载失败: ' + (data.error || data.message || '未知错误'));
+
+        // 隐藏下载信息区域
+        const downloadInfo = document.querySelector('.download-info');
+        if (downloadInfo) {
+            downloadInfo.style.display = 'none';
         }
+    });
+
+    // 添加下载失败事件监听器
+    LoadingService.addEventListener('downloadFailed', function(data) {
+        console.error('会议文件下载失败:', data);
+        updateLoadingText('会议文件下载失败，无法更新会议数据');
+        stopProgressAnimation();
+        setProgress(30);
+
+        // 显示错误消息
+        showError('会议文件下载失败: ' + (data.error || '未知错误'));
+
+        // 隐藏下载信息区域
+        const downloadInfo = document.querySelector('.download-info');
+        if (downloadInfo) {
+            downloadInfo.style.display = 'none';
+        }
+    });
+
+    // 添加下载取消事件监听器
+    LoadingService.addEventListener('downloadCancelled', function(data) {
+        console.log('下载已取消:', data);
+        updateLoadingText('下载已取消');
+        stopProgressAnimation();
+        setProgress(0);
+
+        // 隐藏下载信息区域
+        const downloadInfo = document.querySelector('.download-info');
+        if (downloadInfo) {
+            downloadInfo.style.display = 'none';
+        }
+    });
+
+    // 添加解压取消事件监听器
+    LoadingService.addEventListener('extractCancelled', function(data) {
+        console.log('解压已取消:', data);
+        updateLoadingText('解压已取消');
+        stopProgressAnimation();
+        setProgress(0);
     });
 
     LoadingService.addEventListener('extractStart', function(data) {
@@ -724,6 +810,18 @@ function fetchMeetingById(meetingId) {
         updateLoadingText('操作已取消，准备返回主页面...');
         stopProgressAnimation();
         setProgress(0);
+
+        // 隐藏延时倒计时区域
+        const delayCountdown = document.querySelector('.delay-countdown');
+        if (delayCountdown) {
+            delayCountdown.style.display = 'none';
+        }
+
+        // 隐藏下载信息区域
+        const downloadInfo = document.querySelector('.download-info');
+        if (downloadInfo) {
+            downloadInfo.style.display = 'none';
+        }
 
         // 取消按钮始终显示，不需要隐藏
         // if (typeof hideCancelButton === 'function') {
@@ -802,6 +900,21 @@ function updateLoadingText(text) {
     if (loadingText) {
         loadingText.textContent = text;
     }
+}
+
+// 更新倒计时显示函数
+function updateCountdown(remainingSeconds, totalSeconds) {
+    // 计算分钟和秒
+    const minutes = Math.floor(remainingSeconds / 60);
+    const seconds = remainingSeconds % 60;
+
+    // 格式化为两位数
+    const formattedMinutes = minutes.toString().padStart(2, '0');
+    const formattedSeconds = seconds.toString().padStart(2, '0');
+
+    // 更新倒计时显示
+    document.getElementById('countdown-minutes').textContent = formattedMinutes;
+    document.getElementById('countdown-seconds').textContent = formattedSeconds;
 }
 
 // 显示错误消息函数

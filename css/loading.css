@@ -184,6 +184,22 @@
     width: 100%;
 }
 
+/* 延时倒计时样式 */
+.delay-countdown {
+    margin-top: 15px;
+    text-align: center;
+}
+
+.countdown-timer {
+    font-size: 60px; /* 增大字体大小 */
+    font-weight: bold;
+    color: #4CAF50;
+    text-shadow: 0 0 15px rgba(76, 175, 80, 0.6); /* 增强文字阴影效果 */
+    margin: 15px 0;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 2px; /* 增加字母间距，提高可读性 */
+}
+
 /* 下载信息样式 */
 .download-info {
     font-size: 14px;
@@ -478,6 +494,11 @@
         font-size: 16px;
     }
 
+    .countdown-timer {
+        font-size: 48px; /* 中等屏幕上稍微减小字体大小 */
+        letter-spacing: 1px;
+    }
+
     .progress-container {
         width: 250px;
     }
@@ -504,6 +525,12 @@
 
     .loading-text {
         font-size: 14px;
+    }
+
+    .countdown-timer {
+        font-size: 36px; /* 小屏幕上进一步减小字体大小 */
+        letter-spacing: 0;
+        margin: 10px 0;
     }
 
     .progress-container {
