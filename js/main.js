@@ -252,7 +252,8 @@ function updateMeetingInfo(jsonData) {
     // 更新页面内容
     document.getElementById('meeting-id').textContent = jsonData.id;
     if (titleElement && jsonData.title) {
-        titleElement.textContent = jsonData.title;
+        // 使用格式化函数处理会议标题
+        formatMeetingTitle(titleElement, jsonData.title);
     }
     if (introElement && jsonData.time) {
         // 将时间格式从 YYYY-MM-DD HH:MM 转换为 YYYY年MM月DD日 HH:MM
@@ -460,6 +461,24 @@ if (typeof plus !== 'undefined' && plus.webview) {
             updateConnectionStatus(event.data.networkOnline, event.data.apiConnected);
         }
     });
+}
+
+/**
+ * 格式化会议标题，将空格转换为换行符
+ * @param {HTMLElement} element - 要更新的DOM元素
+ * @param {string} title - 原始会议标题
+ */
+function formatMeetingTitle(element, title) {
+    // 检查标题中是否包含空格
+    if (title.includes(' ')) {
+        // 将空格替换为<br>标签以实现换行
+        const formattedTitle = title.replace(/ /g, '<br>');
+        element.innerHTML = formattedTitle;
+        console.log('会议标题包含空格，已转换为换行显示:', formattedTitle);
+    } else {
+        // 如果没有空格，直接设置文本内容
+        element.textContent = title;
+    }
 }
 
 /**

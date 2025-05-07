@@ -184,13 +184,39 @@ function updateMeetingTopics(jsonData) {
     // 更新会议标题
     const headerTitle = document.querySelector('.header-title');
     if (headerTitle && jsonData.title) {
-        headerTitle.textContent = jsonData.title;
+        // 检查标题中是否包含空格，如果有则删除
+        if (jsonData.title.includes(' ')) {
+            // 删除所有空格
+            const formattedTitle = jsonData.title.replace(/ /g, '');
+            headerTitle.textContent = formattedTitle;
+            console.log('会议标题包含空格，已删除空格:', formattedTitle);
+        } else {
+            // 如果没有空格，直接设置文本内容
+            headerTitle.textContent = jsonData.title;
+        }
     }
 
     // 更新会议介绍
     const meetingIntroLabel = document.querySelector('.checkbox-item label');
-    if (meetingIntroLabel && jsonData.intro) {
-        meetingIntroLabel.textContent = jsonData.intro;
+    const introSection = document.querySelector('.section:first-child');
+
+    // 检查会议介绍是否为空
+    if (jsonData.intro && jsonData.intro.trim() !== '') {
+        // 会议介绍不为空，显示内容
+        if (meetingIntroLabel) {
+            meetingIntroLabel.textContent = jsonData.intro;
+        }
+        // 确保介绍区域显示
+        if (introSection) {
+            introSection.style.display = '';
+        }
+        console.log('显示会议介绍:', jsonData.intro);
+    } else {
+        // 会议介绍为空，隐藏整个介绍区域
+        if (introSection) {
+            introSection.style.display = 'none';
+            console.log('会议介绍为空，隐藏介绍区域');
+        }
     }
 
     // 获取或创建会议ID元素
@@ -208,8 +234,8 @@ function updateMeetingTopics(jsonData) {
     // 获取内容容器
     const contentContainer = document.querySelector('.content-container');
 
-    // 保留会议介绍section
-    const introSection = document.querySelector('.section:first-child');
+    // 保留会议介绍section，使用已经声明的introSection变量
+    // 注意：introSection变量已在上面声明，这里不需要重复声明
 
     // 清空除会议介绍外的所有section
     while (contentContainer.children.length > 1) {

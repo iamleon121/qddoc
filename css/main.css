@@ -120,6 +120,7 @@ body {
     text-align: center;
     word-wrap: break-word;
     display: block;
+    line-height: 1.2; /* 添加行高，优化多行显示效果 */
 }
 
 .meeting-intro-text {
