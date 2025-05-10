@@ -303,7 +303,13 @@ document.addEventListener('plusready', function() {
         // 更新标题显示文件名
         const headerTitle = document.querySelector('.header-title');
         if (headerTitle) {
-            headerTitle.textContent = fileName;
+            // 当文件名超过30个字时，截断后面的部分并用省略号代替
+            if (fileName.length > 30) {
+                headerTitle.textContent = fileName.substring(0, 30) + '......';
+                console.log('文件名超过30个字，已截断：', fileName.substring(0, 30) + '......');
+            } else {
+                headerTitle.textContent = fileName;
+            }
         }
 
         // 更新总页数显示
@@ -478,7 +484,13 @@ document.addEventListener('plusready', function() {
         // 更新标题显示文件名
         const headerTitle = document.querySelector('.header-title');
         if (headerTitle) {
-            headerTitle.textContent = filename;
+            // 当文件名超过30个字时，截断后面的部分并用省略号代替
+            if (filename.length > 30) {
+                headerTitle.textContent = filename.substring(0, 30) + '......';
+                console.log('文件名超过30个字，已截断：', filename.substring(0, 30) + '......');
+            } else {
+                headerTitle.textContent = filename;
+            }
         }
 
         // 显示加载状态

@@ -27,7 +27,8 @@ const LoadingService = {
     delayTimeoutId: null, // 延时定时器ID
     delaySeconds: 0, // 当前选择的延时秒数
     isDelaying: false, // 是否正在延时中
-    delayTimeNodes: [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60], // 可能的延时节点（秒）
+    maxDelayTime: 60, // 最大延时时间（秒），默认60秒
+    delayTimeNodes: [], // 延时节点数组，将在初始化时动态生成
 
     // 事件监听器集合
     eventListeners: {},
@@ -83,14 +84,75 @@ const LoadingService = {
                         console.log('已设置进行中会议列表接口URL:', this.activeMeetingsUrl);
                         console.log('已设置会议基础路径:', this.meetingPackageUrl);
                     }
+
+                    // 加载最大延时时间配置
+                    if (options.maxDelayTime) {
+                        const maxDelay = parseInt(options.maxDelayTime);
+                        if (!isNaN(maxDelay) && maxDelay >= 10 && maxDelay <= 300) {
+                            this.maxDelayTime = maxDelay;
+                            console.log('已设置最大延时时间:', this.maxDelayTime, '秒');
+                        }
+                    }
                 }
             } else {
                 console.log('未找到配置，使用默认设置');
             }
+
+            // 生成延时节点数组
+            this.generateDelayTimeNodes();
         } catch (error) {
             console.error('加载配置失败:', error);
             this.triggerEvent('error', { message: '加载配置失败', details: error });
+
+            // 即使加载失败，也要确保延时节点数组已生成
+            this.generateDelayTimeNodes();
         }
+    },
+
+    // 生成延时节点数组
+    generateDelayTimeNodes: function() {
+        // 清空现有节点数组
+        this.delayTimeNodes = [];
+
+        // 添加0秒（无延时）选项
+        this.delayTimeNodes.push(0);
+
+        // 计算每个节点的时间间隔（将最大延时时间平均分为12份）
+        // 注意：我们需要12个间隔，加上0秒，总共13个节点
+        const interval = Math.ceil(this.maxDelayTime / 12);
+
+        // 生成12个均匀分布的延时节点
+        for (let i = 1; i <= 12; i++) {
+            const nodeValue = i * interval;
+            // 对于最后一个节点，确保不超过最大延时时间
+            if (i === 12) {
+                this.delayTimeNodes.push(this.maxDelayTime);
+            } else if (nodeValue < this.maxDelayTime) {
+                this.delayTimeNodes.push(nodeValue);
+            }
+        }
+
+        // 确保数组中有13个节点（0秒 + 12个间隔）
+        if (this.delayTimeNodes.length < 13) {
+            console.log('节点数量不足13个，调整间隔...');
+            this.delayTimeNodes = [0]; // 重置，保留0
+
+            // 重新计算间隔，确保正好12个间隔
+            const exactInterval = this.maxDelayTime / 12;
+
+            for (let i = 1; i <= 12; i++) {
+                // 对于最后一个节点，使用最大延时时间
+                if (i === 12) {
+                    this.delayTimeNodes.push(this.maxDelayTime);
+                } else {
+                    // 对于其他节点，四舍五入到整数秒
+                    const nodeValue = Math.round(i * exactInterval);
+                    this.delayTimeNodes.push(nodeValue);
+                }
+            }
+        }
+
+        console.log('已生成延时节点数组:', this.delayTimeNodes);
     },
 
     // 从本地存储初始化数据
@@ -535,20 +597,31 @@ const LoadingService = {
 
     // 生成随机延时时间
     generateRandomDelay: function() {
-        // 第一重随机：前半分钟(0-30秒)被选中的概率是75%，后半分钟(31-60秒)被选中的概率是25%
+        // 确保延时节点数组已生成
+        if (this.delayTimeNodes.length === 0) {
+            this.generateDelayTimeNodes();
+        }
+
+        // 计算分界点（最大延时时间的一半）
+        const halfTime = Math.floor(this.maxDelayTime / 2);
+
+        // 第一重随机：前半时间段被选中的概率是75%，后半时间段被选中的概率是25%
         const firstHalfProbability = 0.75;
         const isFirstHalf = Math.random() < firstHalfProbability;
 
         // 根据第一重随机结果，确定可能的延时节点范围
         const possibleNodes = isFirstHalf
-            ? this.delayTimeNodes.filter(node => node <= 30)
-            : this.delayTimeNodes.filter(node => node > 30);
+            ? this.delayTimeNodes.filter(node => node <= halfTime)
+            : this.delayTimeNodes.filter(node => node > halfTime);
+
+        // 如果筛选后没有可用节点（极端情况），使用所有节点
+        const nodesToUse = possibleNodes.length > 0 ? possibleNodes : this.delayTimeNodes;
 
         // 第二重随机：在确定的时间段内，随机选择具体的延时节点
-        const randomIndex = Math.floor(Math.random() * possibleNodes.length);
-        const selectedDelay = possibleNodes[randomIndex];
+        const randomIndex = Math.floor(Math.random() * nodesToUse.length);
+        const selectedDelay = nodesToUse[randomIndex];
 
-        console.log(`随机延时生成：${isFirstHalf ? '前半分钟(0-30秒)' : '后半分钟(31-60秒)'}被选中，具体延时为${selectedDelay}秒`);
+        console.log(`随机延时生成：${isFirstHalf ? `前半时间段(0-${halfTime}秒)` : `后半时间段(${halfTime+1}-${this.maxDelayTime}秒)`}被选中，具体延时为${selectedDelay}秒`);
         return selectedDelay;
     },
 

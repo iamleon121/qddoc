@@ -185,14 +185,19 @@ function updateMeetingTopics(jsonData) {
     const headerTitle = document.querySelector('.header-title');
     if (headerTitle && jsonData.title) {
         // 检查标题中是否包含空格，如果有则删除
-        if (jsonData.title.includes(' ')) {
+        let formattedTitle = jsonData.title;
+        if (formattedTitle.includes(' ')) {
             // 删除所有空格
-            const formattedTitle = jsonData.title.replace(/ /g, '');
-            headerTitle.textContent = formattedTitle;
+            formattedTitle = formattedTitle.replace(/ /g, '');
             console.log('会议标题包含空格，已删除空格:', formattedTitle);
+        }
+
+        // 当会议标题超过30个字时，截断后面的部分并用省略号代替
+        if (formattedTitle.length > 30) {
+            headerTitle.textContent = formattedTitle.substring(0, 30) + '......';
+            console.log('会议标题超过30个字，已截断：', formattedTitle.substring(0, 30) + '......');
         } else {
-            // 如果没有空格，直接设置文本内容
-            headerTitle.textContent = jsonData.title;
+            headerTitle.textContent = formattedTitle;
         }
     }
 

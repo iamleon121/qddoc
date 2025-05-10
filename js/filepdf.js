@@ -57,7 +57,7 @@ function checkFileInDocuments(filename, callback) {
         callback(false);
         return;
     }
-    
+
     const filePath = '_doc/documents/' + filename;
     plus.io.resolveLocalFileSystemURL(filePath, function() {
         callback(true);
@@ -126,7 +126,7 @@ function loadPDF(data) {
     try {
         // 设置更详细的加载进度
         updateLoadingProgress(15, '正在准备PDF查看器...');
-        
+
         // 销毁之前的pdfh5实例（如果存在）
         if (pdfh5Instance) {
             try {
@@ -136,15 +136,15 @@ function loadPDF(data) {
                 console.warn('销毁之前的pdfh5实例失败:', e);
             }
         }
-        
+
         // 创建PDF容器
         pdfViewer.innerHTML = '<div id="pdfh5-container"></div>';
         pdfViewer.style.display = 'block';
-        
+
         // 将二进制数据转换为Blob对象
         const blob = new Blob([data], { type: 'application/pdf' });
         const url = URL.createObjectURL(blob);
-        
+
         // 初始化pdfh5
         pdfh5Instance = new pdfh5({
             pdfurl: '#pdfh5-container',
@@ -160,35 +160,44 @@ function loadPDF(data) {
             scale: 1.5,
             workerSrc: 'js/pdfh5.worker.js'
         });
-        
+
         // 添加触摸事件监听
         addTouchListeners();
-        
+
         // 监听事件
         pdfh5Instance.on('complete', function(status, msg, time) {
             console.log('PDF加载完成', status, msg, time);
             hideLoadingElement();
-            
+
             // 获取文件名并设置标题
             const filename = getFilenameFromUrl() || '文件内容';
-            document.querySelector('.header-title').textContent = filename;
+            const headerTitle = document.querySelector('.header-title');
+            if (headerTitle) {
+                // 当文件名超过30个字时，截断后面的部分并用省略号代替
+                if (filename.length > 30) {
+                    headerTitle.textContent = filename.substring(0, 30) + '......';
+                    console.log('文件名超过30个字，已截断：', filename.substring(0, 30) + '......');
+                } else {
+                    headerTitle.textContent = filename;
+                }
+            }
         });
-        
+
         pdfh5Instance.on('error', function(msg) {
             console.error('PDF加载错误:', msg);
             hideLoadingElement();
             showErrorMessage('PDF文件加载失败: ' + msg);
         });
-        
+
         pdfh5Instance.on('progress', function(progress) {
             const percent = progress.loaded / progress.total * 100;
             updateLoadingProgress(percent, `正在加载PDF: ${Math.floor(percent)}%`);
         });
-        
+
         pdfh5Instance.on('render', function(currentNum, time, totalNum) {
             console.log('PDF渲染页面', currentNum, time, totalNum);
         });
-        
+
     } catch (error) {
         console.error('PDF加载过程中发生错误:', error);
         hideLoadingElement();
@@ -203,7 +212,7 @@ function addTouchListeners() {
     let isZooming = false;
     const MIN_SCALE = 0.5;
     const MAX_SCALE = 3.0;
-    
+
     // 触摸开始事件
     pdfViewer.addEventListener('touchstart', function(e) {
         if (e.touches.length === 2) {
@@ -212,31 +221,31 @@ function addTouchListeners() {
             e.preventDefault();
         }
     }, { passive: false });
-    
+
     // 触摸移动事件
     pdfViewer.addEventListener('touchmove', function(e) {
         if (isZooming && e.touches.length === 2) {
             const currentDistance = getTouchDistance(e.touches);
             const delta = currentDistance / lastTouchDistance;
             const newScale = scale * delta;
-            
+
             if (newScale >= MIN_SCALE && newScale <= MAX_SCALE) {
                 scale = newScale;
                 applyScaleToPages(delta);
             }
-            
+
             lastTouchDistance = currentDistance;
             e.preventDefault();
         }
     }, { passive: false });
-    
+
     // 触摸结束事件
     pdfViewer.addEventListener('touchend', function(e) {
         if (e.touches.length < 2) {
             isZooming = false;
         }
     });
-    
+
     // 触摸取消事件
     pdfViewer.addEventListener('touchcancel', function(e) {
         isZooming = false;
@@ -258,10 +267,10 @@ function applyScaleToPages(delta) {
         if (canvas) {
             const currentWidth = parseFloat(canvas.style.width || canvas.width);
             const currentHeight = parseFloat(canvas.style.height || canvas.height);
-            
+
             const newWidth = currentWidth * delta;
             const newHeight = currentHeight * delta;
-            
+
             canvas.style.width = newWidth + 'px';
             canvas.style.height = newHeight + 'px';
         }
@@ -280,11 +289,20 @@ function getFilenameFromUrl() {
 function initPage() {
     // 设置返回按钮事件
     document.getElementById('backButton').addEventListener('click', goBack);
-    
+
     // 获取文件名并设置标题
     const filename = getFilenameFromUrl();
-    document.querySelector('.header-title').textContent = filename;
-    
+    const headerTitle = document.querySelector('.header-title');
+    if (headerTitle) {
+        // 当文件名超过30个字时，截断后面的部分并用省略号代替
+        if (filename.length > 30) {
+            headerTitle.textContent = filename.substring(0, 30) + '......';
+            console.log('文件名超过30个字，已截断：', filename.substring(0, 30) + '......');
+        } else {
+            headerTitle.textContent = filename;
+        }
+    }
+
     // 更新当前时间
     updateCurrentTime();
     setInterval(updateCurrentTime, 1000);
@@ -296,7 +314,7 @@ function loadPDFFromDocuments(filename) {
         showErrorMessage('无法访问本地文件系统');
         return;
     }
-    
+
     const filePath = '_doc/documents/' + filename;
     console.log('尝试访问文件路径:', filePath);
     plus.io.resolveLocalFileSystemURL(filePath, function(entry) {
@@ -332,7 +350,7 @@ function loadImageFromDocuments(filename) {
         showErrorMessage('无法访问本地文件系统');
         return;
     }
-    
+
     const filePath = '_doc/documents/' + filename;
     plus.io.resolveLocalFileSystemURL(filePath, function(entry) {
         entry.file(function(file) {
@@ -378,14 +396,14 @@ function listDocumentsFiles() {
 
     plus.io.requestFileSystem(plus.io.PRIVATE_DOC, function(fs) {
         console.log('成功获取文件系统');
-        
+
         // 获取documents目录
         fs.root.getDirectory('documents', {}, function(dirEntry) {
             console.log('成功获取documents目录');
-            
+
             // 创建目录读取器
             const reader = dirEntry.createReader();
-            
+
             // 读取目录内容
             reader.readEntries(function(entries) {
                 console.log('documents目录中的文件列表：');
@@ -406,14 +424,14 @@ function listDocumentsFiles() {
 // 在plusready事件中调用listDocumentsFiles函数
 document.addEventListener('plusready', function() {
     console.log('plusready事件触发，开始初始化PDF查看器');
-    
+
     // 检查pdfh5库是否正确加载
     if (typeof pdfh5 === 'undefined') {
         console.error('pdfh5库未正确加载，请检查网络连接');
         showErrorMessage('PDF查看器加载失败，请检查网络连接并刷新页面');
         return;
     }
-    
+
     // 调用列出文件函数
     listDocumentsFiles();
     // 禁止返回
@@ -428,9 +446,15 @@ document.addEventListener('plusready', function() {
     // 更新标题
     const headerTitle = document.querySelector('.header-title');
     if (headerTitle) {
-        headerTitle.textContent = filename;
+        // 当文件名超过30个字时，截断后面的部分并用省略号代替
+        if (filename.length > 30) {
+            headerTitle.textContent = filename.substring(0, 30) + '......';
+            console.log('文件名超过30个字，已截断：', filename.substring(0, 30) + '......');
+        } else {
+            headerTitle.textContent = filename;
+        }
     }
-        
+
         // 显示初始加载进度
         updateLoadingProgress(0, '正在准备加载文件...');
 
@@ -460,15 +484,15 @@ document.addEventListener('plusready', function() {
             // 构建文件路径
             const filePath = '_doc/documents/' + processedFilename;
             console.log('尝试加载文件:', filePath);
-            
+
             // 更新加载进度
             updateLoadingProgress(10, '正在查找文件...');
-            
+
             // 加载文件
             plus.io.resolveLocalFileSystemURL(filePath, function(entry) {
                 console.log('文件存在，开始读取');
                 updateLoadingProgress(20, '文件已找到，正在读取...');
-                
+
                 entry.file(function(file) {
                     const reader = new plus.io.FileReader();
                     // 移除此处的onloadend处理器，避免重复定义
@@ -477,7 +501,7 @@ document.addEventListener('plusready', function() {
                         hideLoadingElement();
                         showErrorMessage('无法读取文件：' + (e.message || '未知错误'));
                     };
-                    
+
                     // 添加超时处理，增加超时时间以适应大文件和低性能设备
                     let readTimeout = setTimeout(function() {
                         reader.abort(); // 中止读取操作
@@ -485,11 +509,11 @@ document.addEventListener('plusready', function() {
                         hideLoadingElement();
                         showErrorMessage('文件读取超时，请检查网络连接或重试');
                     }, 60000); // 增加到60秒超时
-                    
+
                     // 优化读取方法，确保正确读取二进制数据
                     try {
                         console.log('开始读取文件，大小:', file.size, '字节');
-                        
+
                         // 添加读取进度监听（如果支持）
                         if (typeof reader.onprogress !== 'undefined') {
                             reader.onprogress = function(e) {
@@ -497,7 +521,7 @@ document.addEventListener('plusready', function() {
                                     const percent = Math.round((e.loaded / e.total) * 100);
                                     updateLoadingProgress(20 + percent/10, `正在读取文件: ${percent}%`);
                                     console.log('文件读取进度:', percent + '%');
-                                    
+
                                     // 重置超时计时器，防止大文件读取时超时
                                     clearTimeout(readTimeout);
                                     readTimeout = setTimeout(function() {
@@ -509,14 +533,14 @@ document.addEventListener('plusready', function() {
                                 }
                             };
                         }
-                        
+
                         // 清除超时并处理文件
                         reader.onloadend = function(e) {
                             clearTimeout(readTimeout);
                             if (e.target.result) {
                                 console.log('文件读取成功，开始处理');
                                 updateLoadingProgress(30, '文件读取成功，开始处理...');
-                                
+
                                 try {
                                     console.log('文件大小:', e.target.result.byteLength, '字节');
                                     const typedarray = new Uint8Array(e.target.result);
@@ -537,7 +561,7 @@ document.addEventListener('plusready', function() {
                                 showErrorMessage('文件读取失败，文件可能已损坏');
                             }
                         };
-                        
+
                         // 开始读取文件
                         reader.readAsArrayBuffer(file);
                     } catch (readError) {
@@ -582,7 +606,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (backButton) {
         backButton.addEventListener('click', goBack);
     }
-    
+
     // 初始化时间显示并设置定时器
     updateCurrentTime();
     setInterval(updateCurrentTime, 1000);

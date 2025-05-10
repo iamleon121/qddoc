@@ -8,7 +8,8 @@ const OptionService = {
         port: '8000',
         intertime: '10',
         titleText: '政协阜新市委员会', // 默认标题文字
-        showClickHint: 'true' // 默认显示点击提示
+        showClickHint: 'true', // 默认显示点击提示
+        maxDelayTime: '60' // 默认最大延时时间（秒）
     },
 
     // 当前设置
@@ -81,6 +82,7 @@ const OptionService = {
             const updateIntervalInput = document.getElementById('update-interval');
             const titleTextInput = document.getElementById('title-text');
             const showClickHintSelect = document.getElementById('show-click-hint');
+            const maxDelayTimeInput = document.getElementById('max-delay-time');
 
             if (!serverUrlInput || !updateIntervalInput) {
                 console.error('找不到设置输入元素');
@@ -93,6 +95,7 @@ const OptionService = {
             const intertime = updateIntervalInput.value.trim();
             const titleText = titleTextInput ? titleTextInput.value.trim() : this.defaultSettings.titleText;
             const showClickHint = showClickHintSelect ? showClickHintSelect.value : this.defaultSettings.showClickHint;
+            const maxDelayTime = maxDelayTimeInput ? maxDelayTimeInput.value.trim() : this.defaultSettings.maxDelayTime;
 
             if (!server) {
                 alert('请输入有效的服务器地址');
@@ -115,13 +118,21 @@ const OptionService = {
                 return false;
             }
 
+            // 验证最大延时时间
+            const delayTime = parseInt(maxDelayTime);
+            if (isNaN(delayTime) || delayTime < 10 || delayTime > 300) {
+                alert('请输入有效的最大延时时间（10-300秒）');
+                return false;
+            }
+
             // 更新当前设置
             this.currentSettings = {
                 server: server,
                 port: port,
                 intertime: intertime,
                 titleText: titleText,
-                showClickHint: showClickHint
+                showClickHint: showClickHint,
+                maxDelayTime: maxDelayTime
             };
 
             // 保存到本地存储，使用与init.js相同的格式
@@ -156,25 +167,43 @@ const OptionService = {
         const updateIntervalInput = document.getElementById('update-interval');
         const titleTextInput = document.getElementById('title-text');
         const showClickHintSelect = document.getElementById('show-click-hint');
+        const maxDelayTimeInput = document.getElementById('max-delay-time');
 
-        if (serverUrlInput && this.currentSettings.server) {
-            serverUrlInput.value = this.currentSettings.server;
+        if (serverUrlInput) {
+            serverUrlInput.value = (this.currentSettings && this.currentSettings.server)
+                ? this.currentSettings.server
+                : this.defaultSettings.server;
         }
 
-        if (serverPortInput && this.currentSettings.port) {
-            serverPortInput.value = this.currentSettings.port;
+        if (serverPortInput) {
+            serverPortInput.value = (this.currentSettings && this.currentSettings.port)
+                ? this.currentSettings.port
+                : this.defaultSettings.port;
         }
 
-        if (updateIntervalInput && this.currentSettings.intertime) {
-            updateIntervalInput.value = this.currentSettings.intertime;
+        if (updateIntervalInput) {
+            updateIntervalInput.value = (this.currentSettings && this.currentSettings.intertime)
+                ? this.currentSettings.intertime
+                : this.defaultSettings.intertime;
         }
 
-        if (titleTextInput && this.currentSettings.titleText) {
-            titleTextInput.value = this.currentSettings.titleText;
+        if (titleTextInput) {
+            titleTextInput.value = (this.currentSettings && this.currentSettings.titleText)
+                ? this.currentSettings.titleText
+                : this.defaultSettings.titleText;
         }
 
-        if (showClickHintSelect && this.currentSettings.showClickHint) {
-            showClickHintSelect.value = this.currentSettings.showClickHint;
+        if (showClickHintSelect) {
+            showClickHintSelect.value = (this.currentSettings && this.currentSettings.showClickHint)
+                ? this.currentSettings.showClickHint
+                : this.defaultSettings.showClickHint;
+        }
+
+        if (maxDelayTimeInput) {
+            // 如果有设置值则使用设置值，否则使用默认值
+            maxDelayTimeInput.value = (this.currentSettings && this.currentSettings.maxDelayTime)
+                ? this.currentSettings.maxDelayTime
+                : this.defaultSettings.maxDelayTime;
         }
     },
 
@@ -306,6 +335,11 @@ const OptionService = {
     // 获取是否显示点击提示
     getShowClickHint: function() {
         return (this.currentSettings && this.currentSettings.showClickHint) || this.defaultSettings.showClickHint;
+    },
+
+    // 获取最大延时时间（秒）
+    getMaxDelayTime: function() {
+        return (this.currentSettings && this.currentSettings.maxDelayTime) || this.defaultSettings.maxDelayTime;
     }
 };
 
