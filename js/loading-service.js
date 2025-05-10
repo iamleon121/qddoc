@@ -27,7 +27,7 @@ const LoadingService = {
     delayTimeoutId: null, // 延时定时器ID
     delaySeconds: 0, // 当前选择的延时秒数
     isDelaying: false, // 是否正在延时中
-    delayTimeNodes: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120], // 可能的延时节点（秒）
+    delayTimeNodes: [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60], // 可能的延时节点（秒）
 
     // 事件监听器集合
     eventListeners: {},
@@ -535,20 +535,20 @@ const LoadingService = {
 
     // 生成随机延时时间
     generateRandomDelay: function() {
-        // 第一重随机：前一分钟(0-60秒)被选中的概率是75%，后一分钟(70-120秒)被选中的概率是25%
-        const firstMinuteProbability = 0.75;
-        const isFirstMinute = Math.random() < firstMinuteProbability;
+        // 第一重随机：前半分钟(0-30秒)被选中的概率是75%，后半分钟(31-60秒)被选中的概率是25%
+        const firstHalfProbability = 0.75;
+        const isFirstHalf = Math.random() < firstHalfProbability;
 
         // 根据第一重随机结果，确定可能的延时节点范围
-        const possibleNodes = isFirstMinute
-            ? this.delayTimeNodes.filter(node => node <= 60)
-            : this.delayTimeNodes.filter(node => node > 60);
+        const possibleNodes = isFirstHalf
+            ? this.delayTimeNodes.filter(node => node <= 30)
+            : this.delayTimeNodes.filter(node => node > 30);
 
-        // 第二重随机：在确定的分钟内，随机选择具体的延时节点
+        // 第二重随机：在确定的时间段内，随机选择具体的延时节点
         const randomIndex = Math.floor(Math.random() * possibleNodes.length);
         const selectedDelay = possibleNodes[randomIndex];
 
-        console.log(`随机延时生成：${isFirstMinute ? '前一分钟' : '后一分钟'}被选中，具体延时为${selectedDelay}秒`);
+        console.log(`随机延时生成：${isFirstHalf ? '前半分钟(0-30秒)' : '后半分钟(31-60秒)'}被选中，具体延时为${selectedDelay}秒`);
         return selectedDelay;
     },
 
