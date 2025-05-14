@@ -476,8 +476,16 @@ function renderPdfWithPdfJs(pdfUrl) {
                             // 记录加载完成
                             hideLoadingElement();
 
+                            // 添加页面分隔线
+                            addPageDividers();
+
                             // 添加页面切换事件
                             addPageChangeListeners();
+
+                            // 添加窗口大小变化事件，重新计算分隔线位置
+                            window.addEventListener('resize', function() {
+                                setTimeout(addPageDividers, 300);
+                            });
                         }
                     });
                 }).catch(function(error) {
@@ -508,6 +516,7 @@ function renderPdfWithPdfJs(pdfUrl) {
                     if (currentPage !== visiblePage) {
                         currentPage = visiblePage;
                         document.getElementById('pageSelect').value = visiblePage;
+                        document.getElementById('currentPage').textContent = visiblePage;
                         console.log('当前页码:', visiblePage);
                     }
                 });
@@ -515,6 +524,7 @@ function renderPdfWithPdfJs(pdfUrl) {
                 // 页码选择器切换页面
                 document.getElementById('pageSelect').addEventListener('change', function() {
                     const selectedPage = parseInt(this.value);
+                    document.getElementById('currentPage').textContent = selectedPage;
                     scrollToPage(selectedPage);
                 });
             }
@@ -553,6 +563,88 @@ function renderPdfWithPdfJs(pdfUrl) {
     }
 }
 
+// 分隔线位置调整值，可以通过控制台调整
+let dividerOffsetAdjustment = 30; // 默认下移20px
+
+// 添加页面分隔线的函数
+function addPageDividers() {
+    console.log('添加PDF页面分隔线，偏移量:', dividerOffsetAdjustment);
+
+    // 移除已有的分隔线（如果有）
+    const existingDividers = document.querySelectorAll('.page-divider');
+    existingDividers.forEach(divider => divider.remove());
+
+    // 获取所有PDF页面容器
+    const pageContainers = document.querySelectorAll('.pdf-page-container');
+    if (pageContainers.length <= 1) {
+        console.log('只有一个或没有PDF页面，不需要添加分隔线');
+        return;
+    }
+
+    // 获取文件内容容器
+    const fileContent = document.getElementById('fileContent');
+    if (!fileContent) {
+        console.error('找不到fileContent元素');
+        return;
+    }
+
+    // 为每个页面添加分隔线
+    for (let i = 0; i < pageContainers.length; i++) {
+        const container = pageContainers[i];
+
+        // 创建分隔线元素
+        const divider = document.createElement('div');
+        divider.className = 'page-divider';
+        divider.style.cssText = `
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(to right, transparent, #9c2424, transparent);
+            z-index: 100;
+            margin: 0 15px;
+        `;
+
+        // 设置分隔线位置在页面顶部，稍微下移以与页面上檐对齐
+        // 考虑到PDF页面容器有20px的上边距，我们需要调整位置
+        divider.style.top = (container.offsetTop + dividerOffsetAdjustment) + 'px';
+
+        // 添加页码标签
+        const pageLabel = document.createElement('div');
+        pageLabel.className = 'page-label';
+        pageLabel.style.cssText = `
+            position: absolute;
+            right: 20px;
+            background-color: #9c2424;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 12px;
+            transform: translateY(-50%);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        `;
+
+        // 显示页码
+        pageLabel.textContent = `第 ${i+1} 页`;
+        divider.appendChild(pageLabel);
+
+        // 添加到文件内容容器
+        fileContent.appendChild(divider);
+
+        console.log(`添加第 ${i+1} 个分隔线，位置: ${container.offsetTop + dividerOffsetAdjustment}px`);
+    }
+}
+
+// 调整分隔线位置的函数，可以通过控制台调用
+function adjustDividerOffset(offset) {
+    dividerOffsetAdjustment = offset;
+    console.log('分隔线偏移量已调整为:', offset);
+    addPageDividers();
+}
+
+// 将调整函数暴露给全局，以便通过控制台调用
+window.adjustDividerOffset = adjustDividerOffset;
+
 // 更新页码选择器
 function updatePageSelector(totalPages) {
     console.log('更新页码选择器，总页数:', totalPages);
@@ -576,6 +668,7 @@ function updatePageSelector(totalPages) {
 
     // 设置当前页码为1
     pageSelect.value = 1;
+    document.getElementById('currentPage').textContent = 1;
 }
 
 // 在plusready事件中处理设备相关功能
@@ -619,11 +712,13 @@ document.addEventListener('plusready', function() {
 
             // 设置当前页码为1
             pageSelect.value = 1;
+            document.getElementById('currentPage').textContent = 1;
 
             // 添加页码切换事件
             pageSelect.addEventListener('change', function() {
                 const selectedPage = parseInt(this.value);
                 currentPage = selectedPage;
+                document.getElementById('currentPage').textContent = selectedPage;
                 // 这里暂时不实现滚动功能，后续添加PDF渲染后再实现
                 console.log('切换到第', selectedPage, '页');
             });
