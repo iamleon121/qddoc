@@ -3,11 +3,9 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no" />
-    <title>文件内容</title>
+    <title>PDF文件内容</title>
     <link href="css/w3.css" rel="stylesheet" />
     <link href="css/pdfh5.css" rel="stylesheet" />
-    <script src="https://cdn.bootcdn.net/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-    <script src="js/pdfh5.js"></script>
     <style>
         body {
             margin: 0;
@@ -15,8 +13,25 @@
             background-color: #d32f2fe5;
             font-family: "Segoe UI", Arial, sans-serif;
             color: #333;
+            padding-bottom: 60px; /* 为底部托盘留出空间 */
+            user-select: none;          /* 标准语法 */
+            -webkit-user-select: none;  /* Safari/Chrome 等 WebKit 内核浏览器 */
+            -moz-user-select: none;     /* Firefox */
+            -ms-user-select: none;      /* Internet Explorer/Edge */
         }
-        
+
+        /* 页面分隔线样式 */
+        .page-divider {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(to right, transparent, #9c2424, transparent);
+            z-index: 100;
+            margin: 0 15px;
+            transition: all 0.3s ease;
+        }
+
         .header {
 	        display: flex;
 	        align-items: center;
@@ -31,7 +46,7 @@
 	        z-index: 1000;
 	        color: white;
 	    }
-        
+
         .back-button {
             position: absolute;
             left: 20px;
@@ -45,7 +60,7 @@
             box-shadow: 0 3px 5px rgba(0, 0, 0, 0.3),
                        0 3px 5px rgba(0, 0, 0, 0.2);
         }
-        
+
         .back-button:hover {
             transform: translateY(-2px);
             box-shadow: 0 3px 5px rgba(0, 0, 0, 0.3),
@@ -56,19 +71,19 @@
             font-weight: normal;
             margin: 0;
         }
-        
+
         .current-time {
 	        position: absolute;
 	        right: 10px;
 	        font-size: 24px;
 	        color: white;
 	    }
-        
+
         .content-container {
             margin-top: 60px;
             padding: 15px;
         }
-        
+
         .file-content {
             background: rgba(255, 255, 255, 0.9);
             padding: 20px;
@@ -76,81 +91,91 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             white-space: pre-wrap;
             word-wrap: break-word;
+            position: relative; /* 确保容器有相对定位，这样分隔线才能正确定位 */
         }
 
-        /* PDF查看器样式 */
-        #pdf-viewer {
-            display: none;
-            background: #f5f5f5;
-            padding: 20px;
-            border-radius: 8px;
-        }
-
-        .pdf-container {
-            max-width: 100%;
-            margin: 0 auto;
-        }
-
-        .controls {
+        /* macOS风格的功能托盘 */
+        .dock-container {
+            position: fixed;
+            bottom: 20px;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.0);
             display: flex;
             justify-content: center;
-            gap: 10px;
-            margin-bottom: 20px;
-            padding: 10px;
-            background: #fff;
-            border-radius: 5px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            align-items: center;
+            z-index: 1000;
         }
 
-        .controls button {
-            padding: 8px 15px;
-            background: #ff8800e8;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background-color 0.3s;
+        .dock {
+            display: flex;
+            height: 50px;
+            padding: 0 20px;
+            border-radius: 20px;
+            background: linear-gradient(to bottom, #d32f2f, #9c2424);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3),
+                      inset 0 2px 3px rgba(255, 255, 255, 0.2),
+                      0 -3px 6px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
         }
 
-        .controls button:hover {
-            background: #ff6b00;
-        }
-
-        .page-controls {
+        /* 页面选择器样式 */
+        .page-selector {
             display: flex;
             align-items: center;
-            gap: 5px;
+            padding: 0 10px;
         }
 
-        .page-controls input {
-            width: 50px;
-            padding: 5px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            text-align: center;
+        .page-selector label {
+            margin-right: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            color: #ffffff;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
         }
 
-        .pdf-page {
-            margin-bottom: 20px;
-            background: white;
-            padding: 10px;
-            border-radius: 5px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        .page-selector select {
+            background-color: rgba(255, 255, 255, 0.15);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            padding: 6px 12px;
+            font-size: 15px;
+            color: #ffffff;
+            outline: none;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            min-width: 40px;
         }
 
-        .page-label {
-            text-align: center;
-            margin-bottom: 10px;
-            color: #666;
+        .page-selector select:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.5);
         }
 
-        canvas {
-            max-width: 100%;
-            height: auto;
-            display: block;
-            margin: 0 auto;
+        .page-selector select:focus {
+            background-color: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.6);
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1);
         }
 
+        /* 页面信息样式 */
+        .page-info {
+            display: flex;
+            align-items: center;
+            margin-left: 15px;
+            font-size: 16px;
+            color: #ffffff;
+            font-weight: 500;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+        }
+
+        .page-info span {
+            margin: 0 5px;
+        }
+
+        /* 加载指示器样式 */
         .loading {
             display: none;
             position: fixed;
@@ -167,7 +192,7 @@
             justify-content: center;
             text-align: center;
         }
-        
+
         .spinner {
             width: 40px;
             height: 40px;
@@ -177,12 +202,12 @@
             animation: spin 1s linear infinite;
             margin-bottom: 15px;
         }
-        
+
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        
+
         .progress-bar {
             width: 200px;
             height: 10px;
@@ -191,7 +216,7 @@
             margin: 10px 0;
             overflow: hidden;
         }
-        
+
         .progress-fill {
             height: 100%;
             background-color: #ff8800e8;
@@ -206,14 +231,29 @@
         <h1 class="header-title"></h1>
         <div id="current-time" class="current-time"></div>
     </div>
-    
+
     <div class="content-container">
         <div id="fileContent" class="file-content">
             <div id="pdf-viewer"></div>
             <div class="loading">正在加载文件，请稍候...</div>
         </div>
     </div>
-    
+
+    <!-- macOS风格的功能托盘 -->
+    <div class="dock-container">
+        <div class="dock">
+            <div class="page-selector">
+                <label for="pageSelect">页码:</label>
+                <select id="pageSelect">
+                    <!-- 页码选项将由JavaScript动态生成 -->
+                </select>
+            </div>
+            <div class="page-info">
+                <span id="currentPage" style="display:none">1</span> 共 <span id="totalPages">1</span>页
+            </div>
+        </div>
+    </div>
+
     <script src="js/filepdf.js"></script>
 </body>
 </html>

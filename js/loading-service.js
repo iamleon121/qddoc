@@ -1213,28 +1213,181 @@ const LoadingService = {
         // 保存当前会议文件夹路径到本地存储
         plus.storage.setItem('currentMeetingFolder', extractPath);
 
-        // 注释掉删除ZIP文件的代码，保留ZIP文件用于调试
-        /*
-        // 删除下载的ZIP文件
-        plus.io.resolveLocalFileSystemURL(zipPath, entry => {
-            entry.remove(() => {
-                console.log('ZIP文件已删除:', zipPath);
-                resolve(); // 成功完成所有操作
-            }, error => {
-                console.error('删除ZIP文件失败:', error);
-                // 即使删除失败也算成功
-                resolve();
-            });
-        }, error => {
-            console.error('解析ZIP文件路径失败:', error);
-            // 即使解析失败也算成功
-            resolve();
-        });
-        */
+        // 提取会议ID
+        const meetingId = extractPath.includes('meeting_') ?
+            extractPath.split('meeting_')[1].replace('/', '') :
+            'unknown';
 
-        // 直接完成操作，不删除ZIP文件
-        console.log('保留ZIP文件用于调试:', zipPath);
-        resolve(); // 成功完成所有操作
+        console.log('开始检查会议文件夹是否包含PDF文件:', extractPath);
+
+        // 检查解压后的文件夹中是否包含PDF文件
+        this.checkForPdfFiles(extractPath)
+            .then(hasPdfFiles => {
+                // 添加醒目的控制台通知，便于调试
+                console.log('----------------------------------------');
+                console.log('【文件类型检测】会议ID:', meetingId);
+                console.log('【文件类型检测】结果:', hasPdfFiles ? '包含PDF文件' : '不包含PDF文件');
+                console.log('【文件类型检测】将使用', hasPdfFiles ? 'PDF处理方法' : 'JPG处理方法');
+                console.log('----------------------------------------');
+
+                // 将检测结果保存到本地存储（使用固定键名，不携带会议ID信息）
+                plus.storage.setItem('hasPdfFiles', hasPdfFiles ? 'true' : 'false');
+                console.log('保存PDF检测结果 - 键: hasPdfFiles, 值:', hasPdfFiles ? 'true' : 'false');
+
+                // 触发文件类型检测完成事件
+                this.triggerEvent('fileTypeDetected', {
+                    meetingId: meetingId,
+                    hasPdfFiles: hasPdfFiles
+                });
+
+                // 注释掉删除ZIP文件的代码，保留ZIP文件用于调试
+                /*
+                // 删除下载的ZIP文件
+                plus.io.resolveLocalFileSystemURL(zipPath, entry => {
+                    entry.remove(() => {
+                        console.log('ZIP文件已删除:', zipPath);
+                        resolve(); // 成功完成所有操作
+                    }, error => {
+                        console.error('删除ZIP文件失败:', error);
+                        // 即使删除失败也算成功
+                        resolve();
+                    });
+                }, error => {
+                    console.error('解析ZIP文件路径失败:', error);
+                    // 即使解析失败也算成功
+                    resolve();
+                });
+                */
+
+                // 直接完成操作，不删除ZIP文件
+                console.log('保留ZIP文件用于调试:', zipPath);
+                resolve(); // 成功完成所有操作
+            })
+            .catch(error => {
+                // 添加醒目的控制台通知，便于调试
+                console.log('----------------------------------------');
+                console.log('【文件类型检测】会议ID:', meetingId);
+                console.log('【文件类型检测】检测失败:', error);
+                console.log('【文件类型检测】默认使用JPG处理方法');
+                console.log('----------------------------------------');
+
+                // 即使检查失败，也继续执行（使用固定键名，不携带会议ID信息）
+                plus.storage.setItem('hasPdfFiles', 'false'); // 默认为不包含PDF文件
+                console.log('检测失败，保存默认PDF检测结果 - 键: hasPdfFiles, 值: false');
+
+                // 触发文件类型检测失败事件
+                this.triggerEvent('fileTypeDetectionFailed', {
+                    meetingId: meetingId,
+                    error: error.message || String(error)
+                });
+
+                console.log('保留ZIP文件用于调试:', zipPath);
+                resolve(); // 成功完成所有操作
+            });
+    },
+
+    // 检查文件夹中是否包含PDF文件（递归检查）
+    checkForPdfFiles: function(folderPath) {
+        return new Promise((resolve, reject) => {
+            console.log('检查文件夹中是否包含PDF文件:', folderPath);
+
+            plus.io.resolveLocalFileSystemURL(folderPath, entry => {
+                if (!entry.isDirectory) {
+                    console.log('路径不是文件夹:', folderPath);
+                    resolve(false);
+                    return;
+                }
+
+                // 创建目录读取器
+                const reader = entry.createReader();
+
+                // 读取目录内容
+                reader.readEntries(entries => {
+                    console.log('读取到', entries.length, '个条目');
+
+                    // 检查是否有PDF文件
+                    console.log(`[${folderPath}] 开始检查当前目录中的文件`);
+
+                    // 获取所有文件（非目录）
+                    const files = entries.filter(item => !item.isDirectory);
+                    console.log(`[${folderPath}] 当前目录中有 ${files.length} 个文件`);
+
+                    // 检查是否有PDF文件
+                    const pdfFiles = files.filter(item => item.name.toLowerCase().endsWith('.pdf'));
+
+                    if (pdfFiles.length > 0) {
+                        console.log(`[${folderPath}] 找到 ${pdfFiles.length} 个PDF文件:`);
+                        pdfFiles.forEach(file => {
+                            console.log(`[${folderPath}] - ${file.name}`);
+                        });
+
+                        // 找到PDF文件，直接返回true
+                        resolve(true);
+                        return;
+                    } else {
+                        console.log(`[${folderPath}] 当前目录中没有PDF文件`);
+                    }
+
+                    // 如果当前目录没有PDF文件，递归检查子目录
+                    const directories = entries.filter(item => item.isDirectory);
+
+                    if (directories.length === 0) {
+                        // 没有子目录，也没有找到PDF文件
+                        console.log(`[${folderPath}] 没有子目录，检测结果为: 不包含PDF文件`);
+                        resolve(false);
+                        return;
+                    }
+
+                    console.log(`[${folderPath}] 开始检查 ${directories.length} 个子目录:`);
+                    directories.forEach(dir => {
+                        console.log(`[${folderPath}] - ${dir.name}`);
+                    });
+
+                    // 递归检查所有子目录
+                    let checkedCount = 0;
+                    let foundPdf = false;
+
+                    directories.forEach(dir => {
+                        console.log(`[${folderPath}] 开始检查子目录: ${dir.name}`);
+                        this.checkForPdfFiles(dir.fullPath)
+                            .then(result => {
+                                if (result) {
+                                    console.log(`[${folderPath}] 子目录 ${dir.name} 中包含PDF文件`);
+                                    foundPdf = true;
+                                } else {
+                                    console.log(`[${folderPath}] 子目录 ${dir.name} 中不包含PDF文件`);
+                                }
+
+                                checkedCount++;
+                                console.log(`[${folderPath}] 已检查 ${checkedCount}/${directories.length} 个子目录`);
+
+                                if (checkedCount === directories.length) {
+                                    // 所有子目录都检查完毕
+                                    console.log(`[${folderPath}] 所有子目录检查完毕，检测结果为: ${foundPdf ? '包含' : '不包含'}PDF文件`);
+                                    resolve(foundPdf);
+                                }
+                            })
+                            .catch(error => {
+                                console.error(`[${folderPath}] 检查子目录 ${dir.name} 失败:`, error);
+                                checkedCount++;
+                                console.log(`[${folderPath}] 已检查 ${checkedCount}/${directories.length} 个子目录`);
+
+                                if (checkedCount === directories.length) {
+                                    // 所有子目录都检查完毕
+                                    console.log(`[${folderPath}] 所有子目录检查完毕，检测结果为: ${foundPdf ? '包含' : '不包含'}PDF文件`);
+                                    resolve(foundPdf);
+                                }
+                            });
+                    });
+                }, error => {
+                    console.error('读取目录内容失败:', error);
+                    reject(error);
+                });
+            }, error => {
+                console.error('解析文件夹路径失败:', error);
+                reject(error);
+            });
+        });
     },
 
     // 清空所有会议文件夹

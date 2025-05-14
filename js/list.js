@@ -315,23 +315,52 @@ function updateMeetingTopics(jsonData) {
                             totalPages: totalPages
                         });
 
-                        // 构建文件路径
-                        // 路径结构: _doc/meeting_files/meeting_{会议id}/{agenda_folder}/jpgs/{temp_id}/{temp_id}_{name}.jpg
-                        const filePath = '_doc/meeting_files/meeting_' + meetingId + '/' + agendaFolder + '/jpgs/' + tempId + '/' + tempId + '_' + fileName + '.jpg';
-                        console.log('构建的文件路径：', filePath);
+                        // 检查会议数据是否包含PDF文件
+                        let hasPdfFiles = false;
+                        try {
+                            if (typeof plus !== 'undefined' && plus.storage) {
+                                // 使用固定键名读取PDF检测结果
+                                const pdfCheckResult = plus.storage.getItem('hasPdfFiles');
+                                console.log('获取到的PDF检测结果原始值:', pdfCheckResult);
+
+                                hasPdfFiles = pdfCheckResult === 'true';
+                                console.log('会议数据PDF检测结果:', hasPdfFiles ? '包含PDF文件' : '不包含PDF文件');
+                            }
+                        } catch (error) {
+                            console.error('获取PDF检测结果失败:', error);
+                            // 出错时默认使用JPG处理方式
+                            hasPdfFiles = false;
+                        }
+
+                        // 根据检测结果决定文件路径和打开的页面
+                        let filePath;
+                        let targetPage;
+
+                        if (hasPdfFiles) {
+                            // 新的PDF文件路径结构: _doc/meeting_files/meeting_{会议id}/{agenda_folder}/{temp_id}.pdf
+                            // PDF文件名只使用UUID，不包含原始文件名
+                            filePath = '_doc/meeting_files/meeting_' + meetingId + '/' + agendaFolder + '/' + tempId + '.pdf';
+                            targetPage = 'filepdf.html';
+                            console.log('使用PDF处理方式，构建的文件路径：', filePath);
+                        } else {
+                            // JPG文件路径结构保持不变: _doc/meeting_files/meeting_{会议id}/{agenda_folder}/jpgs/{temp_id}/{temp_id}_{name}.jpg
+                            filePath = '_doc/meeting_files/meeting_' + meetingId + '/' + agendaFolder + '/jpgs/' + tempId + '/' + tempId + '_' + fileName + '.jpg';
+                            targetPage = 'file.html';
+                            console.log('使用JPG处理方式，构建的文件路径：', filePath);
+                        }
 
                         if (typeof plus !== 'undefined') {
-                            // 使用plus.webview.open打开file页面，传递文件路径、文件名和总页数参数
-                            plus.webview.open('file.html?file=' + encodeURIComponent(fileName) +
+                            // 使用plus.webview.open打开对应页面，传递文件路径、文件名和总页数参数
+                            plus.webview.open(targetPage + '?file=' + encodeURIComponent(fileName) +
                                               '&page=' + totalPages +
                                               '&path=' + encodeURIComponent(filePath) +
                                               '&meeting_id=' + meetingId,
                                               'file', {}, '', function(e) {
-                                console.error('打开file页面失败：' + JSON.stringify(e));
+                                console.error('打开' + targetPage + '页面失败：' + JSON.stringify(e));
                             });
                         } else {
                             // 在非plus环境下的后备方案，传递文件名和总页数
-                            window.location.href = 'file.html?file=' + encodeURIComponent(fileName) +
+                            window.location.href = targetPage + '?file=' + encodeURIComponent(fileName) +
                                                   '&page=' + totalPages +
                                                   '&path=' + encodeURIComponent(filePath) +
                                                   '&meeting_id=' + meetingId;
@@ -405,14 +434,66 @@ function updateMeetingTopics(jsonData) {
                     // 添加点击事件，只在文本内容上生效
                     textSpan.addEventListener('click', function() {
                         console.log('点击文件：' + fileName + '，总页数：' + totalPages);
+
+                        // 获取会议ID
+                        const meetingId = jsonData.meeting_id || jsonData.id;
+
+                        // 检查会议数据是否包含PDF文件
+                        let hasPdfFiles = false;
+                        try {
+                            if (typeof plus !== 'undefined' && plus.storage) {
+                                // 使用固定键名读取PDF检测结果
+                                const pdfCheckResult = plus.storage.getItem('hasPdfFiles');
+                                console.log('获取到的PDF检测结果原始值:', pdfCheckResult);
+
+                                hasPdfFiles = pdfCheckResult === 'true';
+                                console.log('会议数据PDF检测结果:', hasPdfFiles ? '包含PDF文件' : '不包含PDF文件');
+                            }
+                        } catch (error) {
+                            console.error('获取PDF检测结果失败:', error);
+                            // 出错时默认使用JPG处理方式
+                            hasPdfFiles = false;
+                        }
+
+                        // 构建文件路径
+                        let filePath;
+                        // 获取议题索引（从1开始）
+                        const agendaIndex = index + 1;
+                        const agendaFolder = 'agenda_' + agendaIndex;
+
+                        // 为旧格式数据生成一个临时UUID作为文件标识
+                        // 在实际应用中，应该从服务器获取或使用更可靠的方法生成
+                        const tempId = 'file_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
+
+                        if (hasPdfFiles) {
+                            // 新的PDF文件路径结构: _doc/meeting_files/meeting_{会议id}/{agenda_folder}/{temp_id}.pdf
+                            filePath = '_doc/meeting_files/meeting_' + meetingId + '/' + agendaFolder + '/' + tempId + '.pdf';
+                            console.log('使用PDF处理方式，构建的文件路径：', filePath);
+                        } else {
+                            // JPG文件路径结构保持不变
+                            filePath = '_doc/meeting_files/meeting_' + meetingId + '/' + agendaFolder + '/jpgs/' + tempId + '/' + tempId + '_' + fileName + '.jpg';
+                            console.log('使用JPG处理方式，构建的文件路径：', filePath);
+                        }
+
+                        // 根据检测结果决定打开的页面
+                        const targetPage = hasPdfFiles ? 'filepdf.html' : 'file.html';
+                        console.log('使用' + (hasPdfFiles ? 'PDF' : 'JPG') + '处理方式，打开页面:', targetPage);
+
                         if (typeof plus !== 'undefined') {
-                            // 使用plus.webview.open打开file页面，传递文件名和总页数参数
-                            plus.webview.open('file.html?file=' + encodeURIComponent(fileName) + '&page=' + totalPages, 'file', {}, '', function(e) {
-                                console.error('打开file页面失败：' + JSON.stringify(e));
+                            // 使用plus.webview.open打开对应页面，传递文件路径、文件名和总页数参数
+                            plus.webview.open(targetPage + '?file=' + encodeURIComponent(fileName) +
+                                              '&page=' + totalPages +
+                                              '&path=' + encodeURIComponent(filePath) +
+                                              '&meeting_id=' + meetingId,
+                                              'file', {}, '', function(e) {
+                                console.error('打开' + targetPage + '页面失败：' + JSON.stringify(e));
                             });
                         } else {
-                            // 在非plus环境下的后备方案，传递文件名和总页数
-                            window.location.href = 'file.html?file=' + encodeURIComponent(fileName) + '&page=' + totalPages;
+                            // 在非plus环境下的后备方案，传递文件名、总页数和文件路径
+                            window.location.href = targetPage + '?file=' + encodeURIComponent(fileName) +
+                                                  '&page=' + totalPages +
+                                                  '&path=' + encodeURIComponent(filePath) +
+                                                  '&meeting_id=' + meetingId;
                         }
                     });
 
