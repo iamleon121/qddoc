@@ -41,75 +41,20 @@ function updateCurrentTime() {
     document.getElementById('current-time').textContent = timeString;
 }
 
-// 更新加载进度的函数
+// 更新加载进度的函数 - 不再显示loading元素，只记录日志
 function updateLoadingProgress(percent, message) {
     loadingProgress = percent;
-    const loadingElement = document.querySelector('.loading');
-    if (loadingElement) {
-        // 更新加载进度显示
-        loadingElement.innerHTML = `
-            <div class="spinner"></div>
-            <div>${message || '正在加载文件...'}</div>
-            <div class="progress-bar">
-                <div class="progress-fill" style="width: ${percent}%"></div>
-            </div>
-            <div>${Math.round(percent)}%</div>
-        `;
-        loadingElement.style.display = 'flex';
-        console.log(`加载进度更新: ${percent}%, 消息: ${message}`);
-    } else {
-        // 如果loading元素不存在，创建一个临时的
-        const fileContent = document.getElementById('fileContent');
-        if (fileContent) {
-            const tempLoadingElement = document.createElement('div');
-            tempLoadingElement.className = 'loading';
-            tempLoadingElement.innerHTML = `
-                <div class="spinner"></div>
-                <div>${message || '正在加载文件...'}</div>
-                <div class="progress-bar">
-                    <div class="progress-fill" style="width: ${percent}%"></div>
-                </div>
-                <div>${Math.round(percent)}%</div>
-            `;
-            tempLoadingElement.style.display = 'flex';
-            fileContent.appendChild(tempLoadingElement);
-            console.log(`加载进度更新: ${percent}%, 消息: ${message}`);
-        } else {
-            console.error('找不到loading元素和fileContent元素');
-        }
-    }
+    console.log(`加载进度更新: ${percent}%, 消息: ${message}`);
 }
 
-// 隐藏加载元素的函数
+// 创建loading元素 - 不再实际创建元素，只记录日志
+function createLoadingElement(percent, message) {
+    console.log(`加载进度: ${percent}%, 消息: ${message}`);
+}
+
+// 隐藏加载元素的函数 - 不再需要实际操作，只记录日志
 function hideLoadingElement() {
-    const loadingElement = document.querySelector('.loading');
-    if (loadingElement) {
-        // 确保元素被完全隐藏
-        loadingElement.style.display = 'none';
-        loadingElement.style.visibility = 'hidden';
-        loadingElement.style.opacity = '0';
-
-        // 为确保隐藏成功，可以考虑从DOM中移除元素
-        try {
-            loadingElement.parentNode.removeChild(loadingElement);
-            console.log('加载元素已从DOM中移除');
-        } catch (e) {
-            console.error('移除加载元素失败:', e);
-        }
-
-        console.log('隐藏加载元素');
-    } else {
-        console.log('找不到loading元素，无需隐藏');
-    }
-
-    // 确保PDF容器可见
-    const pdfViewer = document.getElementById('pdf-viewer');
-    if (pdfViewer) {
-        pdfViewer.style.display = 'block';
-        pdfViewer.style.visibility = 'visible';
-        pdfViewer.style.opacity = '1';
-        console.log('确保PDF容器可见');
-    }
+    console.log('加载完成');
 }
 
 // 从URL获取参数
@@ -143,117 +88,8 @@ function initPage() {
     updateCurrentTime();
     setInterval(updateCurrentTime, 1000);
 
-    // 获取总页数
-    const pageParam = getUrlParameter('page');
-    totalPages = pageParam ? parseInt(pageParam) : 1;
-
-    // 更新总页数显示
-    document.getElementById('totalPages').textContent = totalPages;
-
-    // 生成页码选择器选项
-    const pageSelect = document.getElementById('pageSelect');
-    if (pageSelect) {
-        // 清空现有选项
-        pageSelect.innerHTML = '';
-
-        // 添加页码选项
-        for (let i = 1; i <= totalPages; i++) {
-            const option = document.createElement('option');
-            option.value = i;
-            option.textContent = i;
-            pageSelect.appendChild(option);
-        }
-
-        // 设置当前页码为1
-        pageSelect.value = 1;
-        document.getElementById('currentPage').textContent = 1;
-
-        // 添加页码切换事件
-        pageSelect.addEventListener('change', function() {
-            const selectedPage = parseInt(this.value);
-            currentPage = selectedPage;
-            document.getElementById('currentPage').textContent = selectedPage;
-
-            // 如果Pdfh5实例已经初始化，则使用它的goto方法
-            if (pdfh5Instance) {
-                console.log('使用Pdfh5切换到第', selectedPage, '页');
-                pdfh5Instance.goto(selectedPage);
-            } else {
-                console.log('Pdfh5实例未初始化，无法切换页面');
-            }
-        });
-    }
-
-    // 创建初始loading元素
-    const fileContent = document.getElementById('fileContent');
-    if (fileContent) {
-        // 检查是否已存在loading元素
-        if (!document.querySelector('.loading')) {
-            const loadingElement = document.createElement('div');
-            loadingElement.className = 'loading';
-            loadingElement.innerHTML = `
-                <div class="spinner"></div>
-                <div>准备加载PDF文件...</div>
-                <div class="progress-bar">
-                    <div class="progress-fill" style="width: 0%"></div>
-                </div>
-                <div>0%</div>
-            `;
-            fileContent.appendChild(loadingElement);
-            console.log('创建了初始loading元素');
-        }
-    }
-
-    // 获取文件路径
-    const filePath = getUrlParameter('path');
-    if (!filePath) {
-        showErrorMessage('未指定文件路径');
-    }
-    // 注意：我们不在这里加载PDF，而是在plusready事件中处理
-}
-
-// 强制显示PDF内容
-function forceShowPdf() {
-    console.log('强制显示PDF内容');
-
-    // 移除所有loading元素
-    const loadingElements = document.querySelectorAll('.loading');
-    loadingElements.forEach(function(element) {
-        if (element && element.parentNode) {
-            element.parentNode.removeChild(element);
-            console.log('强制移除loading元素');
-        }
-    });
-
-    // 确保PDF容器可见
-    const pdfViewer = document.getElementById('pdf-viewer');
-    if (pdfViewer) {
-        pdfViewer.style.display = 'block';
-        pdfViewer.style.visibility = 'visible';
-        pdfViewer.style.opacity = '1';
-        pdfViewer.style.zIndex = '1000';
-        console.log('强制设置PDF容器可见');
-
-        // 尝试刷新PDF内容
-        if (pdfh5Instance) {
-            try {
-                pdfh5Instance.reset();
-                pdfh5Instance.goto(1);
-                console.log('重置并刷新PDF内容');
-            } catch (e) {
-                console.error('刷新PDF内容失败:', e);
-            }
-        }
-    }
-
-    // 修改body和fileContent的样式，确保内容可见
-    document.body.style.overflow = 'auto';
-    const fileContent = document.getElementById('fileContent');
-    if (fileContent) {
-        fileContent.style.overflow = 'auto';
-        fileContent.style.position = 'relative';
-        fileContent.style.zIndex = '1';
-    }
+    // 初始化页码显示
+    document.getElementById('totalPages').textContent = '1';
 }
 
 // 在DOMContentLoaded事件中初始化页面
@@ -268,64 +104,31 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 初始化页面
     initPage();
-
-    // 添加强制显示PDF按钮的事件监听器
-    const forceShowPdfButton = document.getElementById('forceShowPdf');
-    if (forceShowPdfButton) {
-        forceShowPdfButton.addEventListener('click', forceShowPdf);
-        console.log('添加了强制显示PDF按钮的事件监听器');
-    }
-
-    // 5秒后自动尝试强制显示PDF
-    setTimeout(function() {
-        forceShowPdf();
-        console.log('自动尝试强制显示PDF');
-    }, 5000);
 });
 
 // 加载PDF文件的主函数
 function loadPdfFile(filePath) {
     console.log('开始加载PDF文件:', filePath);
-    updateLoadingProgress(10, '正在准备加载PDF文件...');
 
-    // 首先尝试使用FileReader分块读取
+    // 只有在开始实际读取文件时才显示loading
+    window.forceShowLoading = true;
+    updateLoadingProgress(10, '');
+
+    // 使用FileReader分块读取
     loadPdfWithFileReader(filePath)
         .then(() => {
             console.log('FileReader加载成功');
-            updateLoadingProgress(90, 'PDF文件加载成功，准备渲染...');
+            updateLoadingProgress(90, '');
 
             // 准备PDF容器
-            if (preparePdfContainer()) {
-                // 渲染PDF
-                renderPdfWithPdfh5(pdfObjectUrl);
-            } else {
-                console.error('PDF容器准备失败，无法渲染PDF');
-                showErrorMessage('PDF渲染失败：容器准备失败');
-            }
+            preparePdfContainer();
+
+            // 使用PDF.js渲染PDF
+            renderPdfWithPdfJs(pdfObjectUrl);
         })
         .catch(error => {
-            console.error('FileReader加载失败:', error);
-            updateLoadingProgress(20, '尝试备用加载方法...');
-
-            // 备用方法：使用plus.io.resolveLocalFileSystemURL
-            loadPdfWithFileSystem(filePath)
-                .then(() => {
-                    console.log('FileSystem加载成功');
-                    updateLoadingProgress(90, 'PDF文件加载成功(备用方法)，准备渲染...');
-
-                    // 准备PDF容器
-                    if (preparePdfContainer()) {
-                        // 渲染PDF
-                        renderPdfWithPdfh5(pdfObjectUrl);
-                    } else {
-                        console.error('PDF容器准备失败，无法渲染PDF');
-                        showErrorMessage('PDF渲染失败：容器准备失败');
-                    }
-                })
-                .catch(finalError => {
-                    console.error('所有加载方法均失败:', finalError);
-                    showErrorMessage('PDF文件加载失败，请检查文件是否存在或格式是否正确');
-                });
+            console.error('PDF文件加载失败:', error);
+            showErrorMessage('PDF文件加载失败，请检查文件是否存在或格式是否正确');
         });
 }
 
@@ -356,7 +159,7 @@ function loadPdfWithFileReader(filePath) {
                     reader.onloadend = function(e) {
                         if (e.target.readyState === plus.io.FileReader.DONE) {
                             console.log('文件读取完成');
-                            updateLoadingProgress(90, '文件读取完成，准备处理...');
+                            updateLoadingProgress(90, '');
 
                             try {
                                 // 将base64数据转换为Blob对象
@@ -394,7 +197,7 @@ function loadPdfWithFileReader(filePath) {
                     reader.onprogress = function(e) {
                         if (e.lengthComputable) {
                             const percent = Math.round((e.loaded / e.total) * 80) + 10;
-                            updateLoadingProgress(percent, '正在读取PDF文件...');
+                            updateLoadingProgress(percent, '');
                         }
                     };
 
@@ -440,7 +243,7 @@ function loadLargeFileInChunks(file, fileSize) {
 
                     loadedChunks++;
                     const percent = Math.round((loadedChunks / chunks) * 80) + 10;
-                    updateLoadingProgress(percent, `正在读取PDF文件(${loadedChunks}/${chunks})...`);
+                    updateLoadingProgress(percent, '');
 
                     if (start + CHUNK_SIZE < fileSize) {
                         // 继续加载下一块
@@ -480,92 +283,37 @@ function loadLargeFileInChunks(file, fileSize) {
     });
 }
 
-// 方法2：使用FileSystem API
-function loadPdfWithFileSystem(filePath) {
-    return new Promise((resolve, reject) => {
-        console.log('使用FileSystem API加载PDF文件:', filePath);
-        updateLoadingProgress(30, '尝试备用方法加载PDF...');
+// 清理临时文件夹
+function cleanupTempFolder() {
+    console.log('尝试清理临时文件夹');
 
-        plus.io.resolveLocalFileSystemURL(filePath, fileEntry => {
-            // 创建临时目录用于存放转换后的文件
-            plus.io.resolveLocalFileSystemURL('_doc/', docDir => {
-                docDir.getDirectory('temp', { create: true, exclusive: false }, tempDir => {
-                    // 生成唯一的临时文件名
-                    const tempFileName = 'pdf_' + Date.now() + '.pdf';
-                    const tempFilePath = '_doc/temp/' + tempFileName;
+    try {
+        plus.io.resolveLocalFileSystemURL('_doc/temp/', tempDir => {
+            console.log('找到临时文件夹，开始清理');
 
-                    console.log('创建临时文件:', tempFilePath);
-
-                    // 复制文件到临时目录
-                    fileEntry.copyTo(tempDir, tempFileName, tempFileEntry => {
-                        console.log('文件已复制到临时目录:', tempFilePath);
-                        updateLoadingProgress(60, '文件已复制到临时目录...');
-
-                        // 使用HTML5+的方式获取本地文件URL
-                        const localUrl = plus.io.convertLocalFileSystemURL(tempFilePath);
-                        console.log('转换后的URL:', localUrl);
-
-                        // 使用base64编码
-                        const reader = new plus.io.FileReader();
-                        reader.onloadend = function(e) {
-                            if (e.target.readyState === plus.io.FileReader.DONE) {
-                                console.log('临时文件读取完成');
-                                updateLoadingProgress(90, '文件读取完成，准备处理...');
-
-                                try {
-                                    // 将base64数据转换为Blob对象
-                                    const base64Data = e.target.result.split(',')[1];
-                                    const binaryString = window.atob(base64Data);
-                                    const len = binaryString.length;
-                                    const bytes = new Uint8Array(len);
-
-                                    for (let i = 0; i < len; i++) {
-                                        bytes[i] = binaryString.charCodeAt(i);
-                                    }
-
-                                    pdfBlob = new Blob([bytes], { type: 'application/pdf' });
-
-                                    // 创建Object URL
-                                    if (pdfObjectUrl) {
-                                        URL.revokeObjectURL(pdfObjectUrl);
-                                    }
-                                    pdfObjectUrl = URL.createObjectURL(pdfBlob);
-
-                                    console.log('PDF Blob创建成功，大小:', pdfBlob.size);
-                                    resolve(pdfBlob);
-                                } catch (error) {
-                                    console.error('处理PDF数据时出错:', error);
-                                    reject(error);
-                                }
-                            }
-                        };
-
-                        reader.onerror = function(e) {
-                            console.error('读取临时文件失败:', e);
-                            reject(new Error('读取临时文件失败'));
-                        };
-
-                        // 以base64方式读取
-                        tempFileEntry.file(file => {
-                            reader.readAsDataURL(file);
-                        });
-                    }, error => {
-                        console.error('复制文件失败:', error);
-                        reject(error);
-                    });
-                }, error => {
-                    console.error('创建临时目录失败:', error);
-                    reject(error);
-                });
+            tempDir.removeRecursively(() => {
+                console.log('临时文件夹已成功清理');
             }, error => {
-                console.error('获取文档目录失败:', error);
-                reject(error);
+                console.error('清理临时文件夹失败:', error);
             });
-        }, error => {
-            console.error('解析文件路径失败:', error);
-            reject(error);
+        }, () => {
+            // 如果文件夹不存在，这是正常的
+            console.log('临时文件夹不存在，无需清理');
         });
-    });
+    } catch (error) {
+        console.error('清理临时文件夹时出错:', error);
+    }
+}
+
+// 格式化文件大小
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 B';
+
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+
+    // 保留两位小数，并去除末尾的0
+    return (bytes / Math.pow(1024, i)).toFixed(2).replace(/\.0+$|(\.[0-9]*[1-9])0+$/, '$1') + ' ' + units[i];
 }
 
 // 准备PDF容器
@@ -579,76 +327,37 @@ function preparePdfContainer() {
         return false;
     }
 
-    // 添加加载元素
-    const loadingElement = document.createElement('div');
-    loadingElement.className = 'loading';
-    loadingElement.style.zIndex = '1001'; // 确保loading元素在最上层
-    loadingElement.style.position = 'fixed';
-    loadingElement.style.top = '50%';
-    loadingElement.style.left = '50%';
-    loadingElement.style.transform = 'translate(-50%, -50%)';
-    loadingElement.style.background = 'rgba(255, 255, 255, 0.9)';
-    loadingElement.style.padding = '20px';
-    loadingElement.style.borderRadius = '8px';
-    loadingElement.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
-    loadingElement.style.display = 'flex';
-    loadingElement.style.flexDirection = 'column';
-    loadingElement.style.alignItems = 'center';
-    loadingElement.style.justifyContent = 'center';
-    loadingElement.style.textAlign = 'center';
-
-    loadingElement.innerHTML = `
-        <div class="spinner"></div>
-        <div>正在加载PDF文件...</div>
-        <div class="progress-bar">
-            <div class="progress-fill" style="width: 0%"></div>
-        </div>
-        <div>0%</div>
-    `;
-
     // 清空现有内容
     fileContent.innerHTML = '';
 
     // 创建PDF查看器容器
-    const newPdfViewer = document.createElement('div');
-    newPdfViewer.id = 'pdf-viewer';
-    newPdfViewer.className = 'pdfjs'; // 添加pdfjs类，这是PDFh5需要的
-    newPdfViewer.style.width = '100%';
-    newPdfViewer.style.height = '100%';
-    newPdfViewer.style.minHeight = '65vh';
-    newPdfViewer.style.overflow = 'auto'; // 改为auto，允许滚动
-    newPdfViewer.style.position = 'relative';
-    newPdfViewer.style.zIndex = '1';
-    newPdfViewer.style.backgroundColor = '#fff';
-    newPdfViewer.style.imageRendering = 'high-quality'; // 提高图像渲染质量
-    newPdfViewer.style.textRendering = 'geometricPrecision'; // 提高文本渲染质量
-    newPdfViewer.style.webkitFontSmoothing = 'antialiased'; // 字体平滑
-    newPdfViewer.style.mozOsxFontSmoothing = 'grayscale'; // 字体平滑
-
-    // 添加容器和加载元素
-    fileContent.appendChild(newPdfViewer);
-    fileContent.appendChild(loadingElement);
-
-    console.log('创建了新的PDF查看器容器');
-
-    // 检查容器是否正确创建
-    if (!document.getElementById('pdf-viewer')) {
-        console.error('PDF查看器容器创建失败');
-        return false;
-    }
+    const pdfContainer = document.createElement('div');
+    pdfContainer.id = 'pdf-container';
+    pdfContainer.className = 'pdf-container';
+    pdfContainer.style.width = '100%';
+    pdfContainer.style.height = '100%';
+    pdfContainer.style.minHeight = '65vh';
+    pdfContainer.style.overflow = 'auto';
+    pdfContainer.style.position = 'relative';
+    pdfContainer.style.backgroundColor = '#f8f8f8';
+    pdfContainer.style.border = 'none';
+    pdfContainer.style.outline = 'none';
+    pdfContainer.style.borderRadius = '0';
+    pdfContainer.style.padding = '0';
+    fileContent.appendChild(pdfContainer);
 
     console.log('PDF容器准备完成');
     return true;
 }
 
-// 使用Pdfh5渲染PDF
-function renderPdfWithPdfh5(pdfUrl) {
-    console.log('开始渲染PDF:', pdfUrl);
-    updateLoadingProgress(95, '正在渲染PDF...');
+// 使用PDF.js渲染PDF
+function renderPdfWithPdfJs(pdfUrl) {
+    console.log('开始使用PDF.js渲染PDF:', pdfUrl);
+    updateLoadingProgress(95, '');
 
     try {
-        // 确保Pdfh5容器存在
-        const pdfContainer = document.getElementById('pdf-viewer');
+        // 确保PDF容器存在
+        const pdfContainer = document.getElementById('pdf-container');
         if (!pdfContainer) {
             console.error('找不到PDF容器元素');
             showErrorMessage('PDF渲染失败：找不到容器元素');
@@ -665,96 +374,180 @@ function renderPdfWithPdfh5(pdfUrl) {
         console.log('PDF容器:', pdfContainer);
         console.log('PDF URL:', pdfUrl);
 
+        // 清空容器
+        pdfContainer.innerHTML = '';
+
         // 确保容器可见
         pdfContainer.style.display = 'block';
 
-        // 初始化Pdfh5
-        console.log('初始化Pdfh5实例');
+        // 记录开始时间
+        const startTime = performance.now();
 
-        // 创建Pdfh5配置
-        const pdfh5Config = {
-            pdfurl: pdfUrl,
-            renderType: 'canvas', // 使用canvas渲染，性能更好
-            scrollEnable: true,
-            zoomEnable: true,
-            pageNum: 1, // 初始页码
-            scale: 1.5, // 提高初始缩放比例，使文字更清晰
-            zoomWheelEnable: true, // 允许滚轮缩放
-            textLayer: false, // 禁用文本层，避免错误
-            loadingBar: false, // 禁用内置加载条，使用我们自己的
-            URIenable: false, // 禁用URI处理
-            maxCanvasPixels: 16777216 * 4 // 增加最大画布像素数，提高渲染质量
-        };
+        // 使用PDF.js加载PDF
+        pdfjsLib.getDocument(pdfUrl).promise.then(function(pdf) {
+            console.log('PDF加载成功，总页数:', pdf.numPages);
 
-        console.log('Pdfh5配置:', pdfh5Config);
-
-        // 初始化Pdfh5实例
-        pdfh5Instance = new Pdfh5(pdfContainer, pdfh5Config);
-
-        console.log('Pdfh5实例创建成功');
-
-        // 监听Pdfh5事件
-        pdfh5Instance.on('complete', function(status, msg, time) {
-            console.log('PDF渲染完成，状态:', status, '消息:', msg, '耗时:', time, '毫秒');
-            updateLoadingProgress(100, '加载完成');
-
-            // 获取总页数
-            const actualTotalPages = pdfh5Instance.totalNum || 1;
-            console.log('实际总页数:', actualTotalPages);
-
-            // 更新页码信息
+            // 更新总页数
+            const actualTotalPages = pdf.numPages;
+            totalPages = actualTotalPages;
             document.getElementById('totalPages').textContent = actualTotalPages;
             window.totalPages = actualTotalPages;
 
             // 更新页码选择器
             updatePageSelector(actualTotalPages);
 
-            // 显示当前页码
-            document.getElementById('currentPage').style.display = 'inline';
+            // 不再需要显示当前页码
 
-            // 确保PDF容器可见
-            const pdfViewer = document.getElementById('pdf-viewer');
-            if (pdfViewer) {
-                pdfViewer.style.display = 'block';
-                pdfViewer.style.visibility = 'visible';
-                pdfViewer.style.opacity = '1';
-                console.log('PDF容器已设置为可见');
+            // 创建页面容器
+            const pagesContainer = document.createElement('div');
+            pagesContainer.className = 'pdf-pages-container';
+            pagesContainer.style.width = '100%';
+            pagesContainer.style.position = 'relative';
+            pagesContainer.style.border = 'none';
+            pagesContainer.style.outline = 'none';
+            pagesContainer.style.borderRadius = '0';
+            pagesContainer.style.padding = '0';
+            pdfContainer.appendChild(pagesContainer);
+
+            // 渲染所有页面
+            let renderedPages = 0;
+
+            // 渲染单个页面的函数
+            function renderPage(pageNumber) {
+                return pdf.getPage(pageNumber).then(function(page) {
+                    console.log('开始渲染第', pageNumber, '页');
+
+                    // 创建页面容器
+                    const pageContainer = document.createElement('div');
+                    pageContainer.className = 'pdf-page-container';
+                    pageContainer.style.position = 'relative';
+                    pageContainer.style.margin = '10px auto';
+                    pageContainer.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+                    pageContainer.style.border = 'none';
+                    pageContainer.style.borderRadius = '0';
+                    pageContainer.style.outline = 'none';
+                    pageContainer.style.padding = '0';
+                    pageContainer.setAttribute('data-page-number', pageNumber);
+                    pagesContainer.appendChild(pageContainer);
+
+                    // 创建canvas元素
+                    const canvas = document.createElement('canvas');
+                    canvas.className = 'pdf-page';
+                    canvas.style.border = 'none';
+                    canvas.style.outline = 'none';
+                    canvas.style.borderRadius = '0';
+                    pageContainer.appendChild(canvas);
+
+                    // 获取渲染上下文
+                    const context = canvas.getContext('2d');
+
+                    // 设置缩放比例
+                    const scale = 2.0; // 高清渲染
+                    const viewport = page.getViewport({ scale: scale });
+
+                    // 设置canvas尺寸
+                    canvas.width = viewport.width;
+                    canvas.height = viewport.height;
+                    canvas.style.width = '100%';
+                    canvas.style.height = 'auto';
+                    canvas.style.display = 'block';  // 防止默认的inline显示可能导致的间隙
+                    canvas.style.boxSizing = 'border-box';
+
+                    // 渲染页面
+                    const renderContext = {
+                        canvasContext: context,
+                        viewport: viewport
+                    };
+
+                    return page.render(renderContext).promise.then(function() {
+                        console.log('第', pageNumber, '页渲染完成');
+                        renderedPages++;
+
+                        // 更新进度
+                        const percent = 95 + Math.round((renderedPages / actualTotalPages) * 5);
+                        updateLoadingProgress(percent, '');
+
+                        // 如果所有页面都渲染完成
+                        if (renderedPages === actualTotalPages) {
+                            const endTime = performance.now();
+                            console.log('PDF渲染完成，耗时:', (endTime - startTime).toFixed(2), '毫秒');
+                            updateLoadingProgress(100, '');
+
+                            // 记录加载完成
+                            hideLoadingElement();
+
+                            // 添加页面切换事件
+                            addPageChangeListeners();
+                        }
+                    });
+                }).catch(function(error) {
+                    console.error('渲染第', pageNumber, '页时出错:', error);
+                });
             }
 
-            // 使用setTimeout确保在DOM更新后再隐藏loading元素
-            setTimeout(function() {
-                hideLoadingElement();
-                console.log('延迟隐藏loading元素');
+            // 添加页面切换事件监听器
+            function addPageChangeListeners() {
+                // 页面滚动时更新当前页码
+                pdfContainer.addEventListener('scroll', function() {
+                    // 找到当前可见的页面
+                    const pageContainers = document.querySelectorAll('.pdf-page-container');
+                    let visiblePage = 1;
 
-                // 再次延迟1秒后强制显示PDF
-                setTimeout(function() {
-                    forceShowPdf();
-                    console.log('PDF渲染完成后强制显示PDF');
-                }, 1000);
-            }, 500);
+                    for (let i = 0; i < pageContainers.length; i++) {
+                        const container = pageContainers[i];
+                        const rect = container.getBoundingClientRect();
+
+                        // 如果页面在视口中
+                        if (rect.top <= window.innerHeight / 2 && rect.bottom >= window.innerHeight / 2) {
+                            visiblePage = parseInt(container.getAttribute('data-page-number'));
+                            break;
+                        }
+                    }
+
+                    // 更新当前页码
+                    if (currentPage !== visiblePage) {
+                        currentPage = visiblePage;
+                        document.getElementById('pageSelect').value = visiblePage;
+                        console.log('当前页码:', visiblePage);
+                    }
+                });
+
+                // 页码选择器切换页面
+                document.getElementById('pageSelect').addEventListener('change', function() {
+                    const selectedPage = parseInt(this.value);
+                    scrollToPage(selectedPage);
+                });
+            }
+
+            // 滚动到指定页面
+            function scrollToPage(pageNumber) {
+                const pageContainer = document.querySelector(`.pdf-page-container[data-page-number="${pageNumber}"]`);
+                if (pageContainer) {
+                    pageContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    currentPage = pageNumber;
+                }
+            }
+
+            // 开始渲染所有页面
+            const renderPromises = [];
+            for (let i = 1; i <= actualTotalPages; i++) {
+                renderPromises.push(renderPage(i));
+            }
+
+            // 等待所有页面渲染完成
+            Promise.all(renderPromises).catch(function(error) {
+                console.error('渲染PDF页面时出错:', error);
+                showErrorMessage('PDF渲染失败：' + error.message);
+            });
+
+        }).catch(function(error) {
+            console.error('加载PDF时出错:', error);
+            console.error('错误堆栈:', error.stack);
+            showErrorMessage('PDF加载失败：' + error.message);
         });
 
-        pdfh5Instance.on('error', function(error) {
-            console.error('PDF渲染错误:', error);
-            showErrorMessage('PDF渲染失败：' + error);
-        });
-
-        pdfh5Instance.on('progress', function(progress) {
-            // 渲染进度
-            const percent = 95 + Math.round(progress * 5);
-            updateLoadingProgress(percent, '正在渲染PDF...');
-        });
-
-        pdfh5Instance.on('pageChange', function(pageNum) {
-            // 页码变化
-            currentPage = pageNum;
-            document.getElementById('currentPage').textContent = pageNum;
-            document.getElementById('pageSelect').value = pageNum;
-        });
-
-        console.log('Pdfh5事件监听器已设置');
     } catch (error) {
-        console.error('Pdfh5初始化失败:', error);
+        console.error('PDF.js初始化失败:', error);
         console.error('错误堆栈:', error.stack);
         showErrorMessage('PDF渲染失败：' + error.message);
     }
@@ -763,47 +556,34 @@ function renderPdfWithPdfh5(pdfUrl) {
 // 更新页码选择器
 function updatePageSelector(totalPages) {
     console.log('更新页码选择器，总页数:', totalPages);
+
     const pageSelect = document.getElementById('pageSelect');
-    if (pageSelect) {
-        // 清空现有选项
-        pageSelect.innerHTML = '';
-
-        // 添加页码选项
-        for (let i = 1; i <= totalPages; i++) {
-            const option = document.createElement('option');
-            option.value = i;
-            option.textContent = i;
-            pageSelect.appendChild(option);
-        }
-
-        // 设置当前页码
-        pageSelect.value = currentPage;
-
-        // 添加页码切换事件
-        pageSelect.addEventListener('change', function() {
-            const selectedPage = parseInt(this.value);
-            if (pdfh5Instance) {
-                console.log('切换到第', selectedPage, '页');
-                pdfh5Instance.goto(selectedPage);
-            }
-        });
+    if (!pageSelect) {
+        console.error('找不到页码选择器元素');
+        return;
     }
-}
 
-// 格式化文件大小
-function formatFileSize(bytes) {
-    if (bytes === 0) return '0 B';
+    // 清空现有选项
+    pageSelect.innerHTML = '';
 
-    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    // 添加页码选项
+    for (let i = 1; i <= totalPages; i++) {
+        const option = document.createElement('option');
+        option.value = i;
+        option.textContent = i;
+        pageSelect.appendChild(option);
+    }
 
-    // 保留两位小数，并去除末尾的0
-    return (bytes / Math.pow(1024, i)).toFixed(2).replace(/\.0+$|(\.[0-9]*[1-9])0+$/, '$1') + ' ' + units[i];
+    // 设置当前页码为1
+    pageSelect.value = 1;
 }
 
 // 在plusready事件中处理设备相关功能
 document.addEventListener('plusready', function() {
     console.log('plusready事件触发，开始初始化PDF查看器');
+
+    // 清理临时文件夹
+    cleanupTempFolder();
 
     // 禁止返回键
     plus.key.addEventListener('backbutton', function() {
@@ -823,12 +603,34 @@ document.addEventListener('plusready', function() {
         // 更新总页数显示
         document.getElementById('totalPages').textContent = totalPages;
 
-        // 注意：页码选择器的事件处理已经在initPage函数中设置，这里不需要重复设置
+        // 生成页码选择器选项
+        const pageSelect = document.getElementById('pageSelect');
+        if (pageSelect) {
+            // 清空现有选项
+            pageSelect.innerHTML = '';
 
-        // 显示加载元素
-        updateLoadingProgress(0, '准备加载PDF文件...');
+            // 添加页码选项
+            for (let i = 1; i <= totalPages; i++) {
+                const option = document.createElement('option');
+                option.value = i;
+                option.textContent = i;
+                pageSelect.appendChild(option);
+            }
 
-        // 开始加载PDF文件
+            // 设置当前页码为1
+            pageSelect.value = 1;
+
+            // 添加页码切换事件
+            pageSelect.addEventListener('change', function() {
+                const selectedPage = parseInt(this.value);
+                currentPage = selectedPage;
+                // 这里暂时不实现滚动功能，后续添加PDF渲染后再实现
+                console.log('切换到第', selectedPage, '页');
+            });
+        }
+
+        // 开始加载PDF文件，不显示初始loading
+        window.forceShowLoading = false;
         loadPdfFile(filePath);
     } else {
         showErrorMessage('未指定文件路径');
