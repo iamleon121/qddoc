@@ -393,6 +393,8 @@ function renderPdfWithPdfJs(pdfUrl) {
             document.getElementById('totalPages').textContent = actualTotalPages;
             window.totalPages = actualTotalPages;
 
+            // 浮动页码已移除，不需要更新总页数
+
             // 更新页码选择器
             updatePageSelector(actualTotalPages);
 
@@ -482,6 +484,9 @@ function renderPdfWithPdfJs(pdfUrl) {
                             // 添加页面切换事件
                             addPageChangeListeners();
 
+                            // 设置IntersectionObserver监测页面可见性
+                            setupPageObserver();
+
                             // 添加窗口大小变化事件，重新计算分隔线位置
                             window.addEventListener('resize', function() {
                                 setTimeout(addPageDividers, 300);
@@ -495,46 +500,37 @@ function renderPdfWithPdfJs(pdfUrl) {
 
             // 添加页面切换事件监听器
             function addPageChangeListeners() {
-                // 页面滚动时更新当前页码
-                pdfContainer.addEventListener('scroll', function() {
-                    // 找到当前可见的页面
-                    const pageContainers = document.querySelectorAll('.pdf-page-container');
-                    let visiblePage = 1;
-
-                    for (let i = 0; i < pageContainers.length; i++) {
-                        const container = pageContainers[i];
-                        const rect = container.getBoundingClientRect();
-
-                        // 如果页面在视口中
-                        if (rect.top <= window.innerHeight / 2 && rect.bottom >= window.innerHeight / 2) {
-                            visiblePage = parseInt(container.getAttribute('data-page-number'));
-                            break;
-                        }
-                    }
-
-                    // 更新当前页码
-                    if (currentPage !== visiblePage) {
-                        currentPage = visiblePage;
-                        document.getElementById('pageSelect').value = visiblePage;
-                        document.getElementById('currentPage').textContent = visiblePage;
-                        console.log('当前页码:', visiblePage);
-                    }
-                });
+                // 不再使用滚动事件监听页码变化，改用IntersectionObserver
+                // 仅保留页码选择器的事件监听
 
                 // 页码选择器切换页面
                 document.getElementById('pageSelect').addEventListener('change', function() {
                     const selectedPage = parseInt(this.value);
                     document.getElementById('currentPage').textContent = selectedPage;
+
+                    // 更新浮动页码显示
+                    updateFloatingPageNumber(selectedPage);
+
                     scrollToPage(selectedPage);
                 });
             }
 
-            // 滚动到指定页面
+            // 滚动到指定页面 - 简化版
             function scrollToPage(pageNumber) {
                 const pageContainer = document.querySelector(`.pdf-page-container[data-page-number="${pageNumber}"]`);
                 if (pageContainer) {
+                    // 使用平滑滚动
                     pageContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+                    // 更新当前页码
                     currentPage = pageNumber;
+
+                    // 更新最后一次页码更新时间
+                    lastPageUpdateTime = Date.now();
+
+                    console.log('手动滚动到页面:', pageNumber);
+                } else {
+                    console.error('找不到页面容器:', pageNumber);
                 }
             }
 
@@ -645,6 +641,181 @@ function adjustDividerOffset(offset) {
 // 将调整函数暴露给全局，以便通过控制台调用
 window.adjustDividerOffset = adjustDividerOffset;
 
+// 更新页码显示（浮动页码已移除，仅保留日志）
+function updateFloatingPageNumber(pageNumber) {
+    // 浮动页码已移除，仅保留日志
+    console.log('更新页码显示:', pageNumber + '/' + totalPages);
+}
+
+// 页面观察器实例
+let pageObserver = null;
+
+// 防抖定时器
+let pageUpdateDebounceTimer = null;
+
+// 页码稳定性检查
+let lastDetectedPage = null;
+let pageStabilityCounter = 0;
+let pageStabilityThreshold = 2; // 需要连续检测到相同页码的次数
+let lastPageUpdateTime = Date.now(); // 上次页码更新时间，初始化为当前时间
+let fastScrollDetected = false; // 是否检测到快速滚动
+
+// 防抖函数 - 用于减少页码更新频率
+function debouncePageUpdate(callback, delay = 200) {
+    if (pageUpdateDebounceTimer) {
+        clearTimeout(pageUpdateDebounceTimer);
+    }
+    pageUpdateDebounceTimer = setTimeout(callback, delay);
+}
+
+// 简化的页码检测函数
+function checkPageStability(pageNumber, intersectionRatio) {
+    const now = Date.now();
+    const timeSinceLastUpdate = now - lastPageUpdateTime;
+
+    // 如果页码相同，直接返回false，不需要更新
+    if (pageNumber === currentPage) {
+        return false;
+    }
+
+    // 如果交叉比例很高，直接更新
+    if (intersectionRatio > 0.6) {
+        console.log('页面可见度很高，直接更新页码');
+        lastPageUpdateTime = now;
+        return true;
+    }
+
+    // 如果距离上次更新时间很短，且交叉比例不高，不更新
+    if (timeSinceLastUpdate < 300 && intersectionRatio < 0.4) {
+        console.log('更新过于频繁，忽略此次更新');
+        return false;
+    }
+
+    // 更新时间戳并返回true
+    lastPageUpdateTime = now;
+    return true;
+}
+
+// 设置IntersectionObserver监测页面可见性
+function setupPageObserver() {
+    console.log('设置IntersectionObserver监测页面可见性');
+
+    // 如果已经存在观察器，先清理
+    if (pageObserver) {
+        pageObserver.disconnect();
+        pageObserver = null;
+    }
+
+    // 创建IntersectionObserver配置
+    const options = {
+        root: null, // 使用视口作为根
+        rootMargin: '-5% 0px', // 稍微缩小检测区域，但不要太多
+        threshold: [0.1, 0.2, 0.3, 0.4, 0.5] // 增加低阈值，提高检测灵敏度
+    };
+
+    // 记录上次滚动位置，用于判断滚动方向
+    let lastScrollTop = 0;
+    let scrollDirection = 'down'; // 默认向下滚动
+
+    // 添加滚动事件监听，仅用于检测滚动方向
+    const pdfContainer = document.getElementById('pdf-container');
+    if (pdfContainer) {
+        pdfContainer.addEventListener('scroll', function() {
+            const currentScrollTop = pdfContainer.scrollTop;
+            if (currentScrollTop > lastScrollTop) {
+                scrollDirection = 'down';
+            } else if (currentScrollTop < lastScrollTop) {
+                scrollDirection = 'up';
+            }
+            lastScrollTop = currentScrollTop;
+        }, { passive: true });
+    }
+
+    // 创建IntersectionObserver实例 - 简化版
+    pageObserver = new IntersectionObserver((entries) => {
+        // 使用防抖函数减少更新频率
+        debouncePageUpdate(() => {
+            // 过滤出可见的页面并按交叉比例排序
+            const visibleEntries = entries
+                .filter(entry => entry.isIntersecting)
+                .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+
+            // 如果有可见的页面
+            if (visibleEntries.length > 0) {
+                // 获取可见比例最高的页面
+                const mostVisibleEntry = visibleEntries[0];
+                const pageNumber = parseInt(mostVisibleEntry.target.getAttribute('data-page-number'));
+                const intersectionRatio = mostVisibleEntry.intersectionRatio;
+
+                // 考虑滚动方向和可见比例
+                if (visibleEntries.length > 1 &&
+                    mostVisibleEntry.intersectionRatio - visibleEntries[1].intersectionRatio < 0.1) {
+
+                    // 如果两个页面可见比例接近，考虑滚动方向
+                    const secondEntry = visibleEntries[1];
+                    const secondPageNumber = parseInt(secondEntry.target.getAttribute('data-page-number'));
+
+                    // 根据滚动方向选择页面
+                    if ((scrollDirection === 'down' && secondPageNumber > pageNumber) ||
+                        (scrollDirection === 'up' && secondPageNumber < pageNumber)) {
+
+                        console.log(`滚动方向${scrollDirection === 'down' ? '向下' : '向上'}，选择${scrollDirection === 'down' ? '后' : '前'}面的页面:`, secondPageNumber);
+                        updatePageNumber(secondPageNumber, secondEntry.intersectionRatio);
+                        return;
+                    }
+                }
+
+                // 更新页码
+                updatePageNumber(pageNumber, intersectionRatio);
+            }
+        }, 100); // 减少防抖延迟到100ms，提高响应速度
+    }, options);
+
+    // 更新页码的辅助函数 - 简化版
+    function updatePageNumber(pageNumber, intersectionRatio) {
+        console.log('检测到页面可见性变化，页码:', pageNumber, '交叉比例:', intersectionRatio.toFixed(2));
+
+        // 进行页码稳定性检查
+        if (!checkPageStability(pageNumber, intersectionRatio)) {
+            return; // 页码不稳定或相同，不更新
+        }
+
+        // 记录之前的页码，用于日志
+        const previousPage = currentPage;
+
+        // 更新当前页码
+        currentPage = pageNumber;
+
+        // 更新页码选择器（保留此功能以确保同步）
+        const pageSelect = document.getElementById('pageSelect');
+        if (pageSelect) {
+            pageSelect.value = pageNumber;
+        }
+
+        // 更新隐藏的当前页码
+        const currentPageElement = document.getElementById('currentPage');
+        if (currentPageElement) {
+            currentPageElement.textContent = pageNumber;
+        }
+
+        // 记录页码更新（浮动页码已移除）
+        console.log('页码已更新，从', previousPage, '变为:', pageNumber);
+    }
+
+    // 获取所有PDF页面容器
+    const pageContainers = document.querySelectorAll('.pdf-page-container');
+
+    // 开始观察所有页面容器
+    pageContainers.forEach(container => {
+        pageObserver.observe(container);
+        console.log('开始观察页面容器:', container.getAttribute('data-page-number'));
+    });
+
+    console.log('IntersectionObserver设置完成，正在观察', pageContainers.length, '个页面容器');
+
+    return pageObserver;
+}
+
 // 更新页码选择器
 function updatePageSelector(totalPages) {
     console.log('更新页码选择器，总页数:', totalPages);
@@ -669,6 +840,9 @@ function updatePageSelector(totalPages) {
     // 设置当前页码为1
     pageSelect.value = 1;
     document.getElementById('currentPage').textContent = 1;
+
+    // 初始化浮动页码
+    updateFloatingPageNumber(1);
 }
 
 // 在plusready事件中处理设备相关功能
@@ -719,6 +893,10 @@ document.addEventListener('plusready', function() {
                 const selectedPage = parseInt(this.value);
                 currentPage = selectedPage;
                 document.getElementById('currentPage').textContent = selectedPage;
+
+                // 更新浮动页码显示
+                updateFloatingPageNumber(selectedPage);
+
                 // 这里暂时不实现滚动功能，后续添加PDF渲染后再实现
                 console.log('切换到第', selectedPage, '页');
             });
