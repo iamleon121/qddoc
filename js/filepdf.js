@@ -909,3 +909,192 @@ document.addEventListener('plusready', function() {
         showErrorMessage('未指定文件路径');
     }
 });
+
+// 初始化放大镜功能
+function initMagnifier() {
+    console.log('初始化PDF放大镜功能');
+    const pdfContainer = document.getElementById('pdf-container');
+    if (!pdfContainer) {
+        console.log('PDF容器不存在，放大镜功能初始化延迟');
+        // 如果PDF容器不存在，等待它创建完成后再初始化
+        const checkInterval = setInterval(() => {
+            const container = document.getElementById('pdf-container');
+            if (container) {
+                clearInterval(checkInterval);
+                console.log('PDF容器已创建，开始初始化放大镜功能');
+                setupMagnifier(container);
+            }
+        }, 500);
+        return;
+    }
+
+    setupMagnifier(pdfContainer);
+}
+
+// 设置放大镜功能
+function setupMagnifier(pdfContainer) {
+    let longPressTimer;
+    let magnifier = null;
+    let isLongPress = false;
+    let touchStartX = 0;
+    let touchStartY = 0;
+    const LONG_PRESS_DURATION = 1200; // 长按时间为1.2秒
+    const MOVE_THRESHOLD = 10; // 移动阈值，超过这个距离则取消长按
+
+    // 创建放大镜元素
+    function createMagnifier() {
+        if (magnifier) return;
+
+        magnifier = document.createElement('div');
+        magnifier.id = 'magnifier';
+        magnifier.style.cssText = `
+            position: absolute;
+            width: 300px;
+            height: 160px;
+            background-repeat: no-repeat;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            z-index: 1001;
+            pointer-events: none;
+            display: none;
+            border: 2px solid #fff;
+            overflow: hidden;
+            border-radius: 5px;
+        `;
+        document.body.appendChild(magnifier);
+    }
+
+    // 触摸开始事件
+    pdfContainer.addEventListener('touchstart', function(e) {
+        // 检查是否点击在PDF页面上
+        const target = e.target;
+        if (!target.classList.contains('pdf-page') && !target.closest('.pdf-page-container')) {
+            return;
+        }
+
+        createMagnifier();
+
+        clearTimeout(longPressTimer);
+        isLongPress = false;
+
+        // 记录初始触摸位置
+        const touch = e.touches[0];
+        touchStartX = touch.clientX;
+        touchStartY = touch.clientY;
+
+        longPressTimer = setTimeout(function() {
+            isLongPress = true;
+            updateMagnifier(touch);
+            magnifier.style.display = 'block';
+        }, LONG_PRESS_DURATION);
+    }, { passive: false });
+
+    // 触摸移动事件
+    pdfContainer.addEventListener('touchmove', function(e) {
+        if (isLongPress) {
+            e.preventDefault(); // 阻止页面滚动
+
+            const touch = e.touches[0];
+            updateMagnifier(touch);
+            return;
+        }
+
+        const touch = e.touches[0];
+        const moveX = Math.abs(touch.clientX - touchStartX);
+        const moveY = Math.abs(touch.clientY - touchStartY);
+
+        // 如果移动距离超过阈值，取消长按
+        if (moveX > MOVE_THRESHOLD || moveY > MOVE_THRESHOLD) {
+            clearTimeout(longPressTimer);
+            if (magnifier) {
+                magnifier.style.display = 'none';
+            }
+            isLongPress = false;
+        }
+    }, { passive: false });
+
+    // 触摸结束事件
+    pdfContainer.addEventListener('touchend', function() {
+        clearTimeout(longPressTimer);
+        if (magnifier) {
+            magnifier.style.display = 'none';
+        }
+        isLongPress = false;
+    });
+
+    // 触摸取消事件
+    pdfContainer.addEventListener('touchcancel', function() {
+        clearTimeout(longPressTimer);
+        if (magnifier) {
+            magnifier.style.display = 'none';
+        }
+        isLongPress = false;
+    });
+
+    // 更新放大镜位置和内容
+    function updateMagnifier(touch) {
+        // 找到触摸点所在的canvas
+        const canvas = document.elementFromPoint(touch.clientX, touch.clientY);
+        if (!canvas || !canvas.classList.contains('pdf-page')) {
+            magnifier.style.display = 'none';
+            return;
+        }
+
+        const canvasRect = canvas.getBoundingClientRect();
+        const touchX = touch.clientX - canvasRect.left;
+        const touchY = touch.clientY - canvasRect.top;
+
+        // 检查触摸点是否在canvas内
+        if (touchX < 0 || touchX > canvasRect.width || touchY < 0 || touchY > canvasRect.height) {
+            magnifier.style.display = 'none';
+            return;
+        }
+
+        const scrollY = window.scrollY || document.documentElement.scrollTop;
+        const magX = touch.clientX - 120;
+        const magY = touch.clientY + scrollY - 200;
+
+        magnifier.style.left = `${magX}px`;
+        magnifier.style.top = `${magY}px`;
+
+        // 计算放大倍数和背景位置
+        const zoom = 1;
+        const scaleX = canvas.width / canvasRect.width;
+        const scaleY = canvas.height / canvasRect.height;
+
+        // 计算在原始canvas中的位置
+        const originalX = touchX * scaleX;
+        const originalY = touchY * scaleY;
+
+        // 创建临时canvas用于放大显示
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = 300;
+        tempCanvas.height = 160;
+        const tempCtx = tempCanvas.getContext('2d');
+
+        // 从原始canvas中提取区域并放大
+        const sourceWidth = 150 / zoom;
+        const sourceHeight = 80 / zoom;
+        tempCtx.drawImage(
+            canvas,
+            originalX - sourceWidth / 2,
+            originalY - sourceHeight / 2,
+            sourceWidth,
+            sourceHeight,
+            0,
+            0,
+            300,
+            160
+        );
+
+        // 将临时canvas的内容设置为放大镜的背景
+        magnifier.style.backgroundImage = `url(${tempCanvas.toDataURL()})`;
+    }
+
+    console.log('PDF放大镜功能初始化完成');
+}
+
+// 在DOMContentLoaded事件中初始化放大镜功能
+document.addEventListener('DOMContentLoaded', function() {
+    // 初始化放大镜功能
+    setTimeout(initMagnifier, 1000); // 延迟1秒初始化，确保PDF容器已创建
+});
