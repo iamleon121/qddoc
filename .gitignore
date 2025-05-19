@@ -5,9 +5,8 @@ node_modules/
 dist/
 build/
 
-# 缓存和发布目录
-unpackage/cache/
-unpackage/release/
+# 忽略整个unpackage文件夹
+unpackage/
 
 # APK文件
 *.apk
