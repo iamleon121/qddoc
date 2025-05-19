@@ -5,8 +5,12 @@ node_modules/
 dist/
 build/
 
-# 缓存目录
+# 缓存和发布目录
 unpackage/cache/
+unpackage/release/
+
+# APK文件
+*.apk
 
 # 日志文件
 *.log
@@ -26,6 +30,9 @@ yarn-error.log*
 # 操作系统文件
 .DS_Store
 Thumb.db
+Thumbs.db
+ehthumbs.db
+Desktop.ini
 
 # 环境变量文件
 .env
@@ -37,3 +44,8 @@ Thumb.db
 # 临时文件
 *.tmp
 *.temp
+
+# 备份文件
+*.bak
+*.backup
+*~
